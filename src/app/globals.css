@@ -1,7 +1,8 @@
 @import "tailwindcss";
 
 /* Palette da menu JRPG: cielo chiaro / notte indaco, cobalto come accento,
-   viola per i personaggi, verde acqua per i luoghi, ambra per i fili in sospeso. */
+   viola per i personaggi, verde acqua per i luoghi, ambra per i fili in sospeso,
+   rosa lampone per gli obiettivi. */
 :root {
   --bg: #eef2f9;
   --panel: #ffffff;
@@ -17,6 +18,8 @@
   --place-bg: #dcf3f1;
   --thread: #a8650a;
   --thread-bg: #fbefd9;
+  --goal: #b4235a;
+  --goal-bg: #fbe3ec;
   --gold: #b98a1f;
   --danger: #b8323d;
 }
@@ -37,6 +40,8 @@
     --place-bg: #123634;
     --thread: #f0b65a;
     --thread-bg: #3a2b12;
+    --goal: #ff8fb8;
+    --goal-bg: #3f1a2b;
     --gold: #e3bb55;
     --danger: #ff7a84;
     color-scheme: dark;
@@ -58,6 +63,8 @@
   --color-place-bg: var(--place-bg);
   --color-thread: var(--thread);
   --color-thread-bg: var(--thread-bg);
+  --color-goal: var(--goal);
+  --color-goal-bg: var(--goal-bg);
   --color-gold: var(--gold);
   --color-danger: var(--danger);
   --font-display: var(--font-spectral-sc), Georgia, serif;

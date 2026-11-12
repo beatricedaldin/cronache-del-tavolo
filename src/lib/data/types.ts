@@ -1,3 +1,4 @@
+import type { Sheet } from "@/lib/fabula";
 import type { TagKind } from "@/lib/tags";
 
 export type Role = "gm" | "player";
@@ -15,6 +16,10 @@ export type Entry = {
   createdAt: string;
   authorId: string;
   authorName: string;
+  isPublic: boolean;
+  updatedAt: string | null;
+  /** Data della voce scelta da chi scrive (AAAA-MM-GG). */
+  date: string;
 };
 
 export type EntitySummary = {
@@ -26,12 +31,40 @@ export type EntitySummary = {
   lastSession: number | null;
   /** Solo per il Master: quanti giocatori l'hanno citata. */
   authors: number;
+  /** Il Master ha scritto la scheda pubblica (descrizione/immagine). */
+  hasCard: boolean;
+  /** Note del compendio visibili all'utente. */
+  notes: number;
 };
 
-export type EntityDetail = { kind: TagKind; slug: string; name: string; entries: Entry[] };
+export type EntityCard = { name: string; description: string; imagePath: string | null; imageUrl: string | null };
+
+export type EntityNote = {
+  id: string;
+  ownerId: string;
+  ownerName: string;
+  body: string;
+  isPublic: boolean;
+  /** Data della nota scelta da chi scrive (AAAA-MM-GG). */
+  date: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type EntityDetail = {
+  kind: TagKind;
+  slug: string;
+  name: string;
+  entries: Entry[];
+  card: EntityCard | null;
+  notes: EntityNote[];
+};
+
+export type ThreadKind = "question" | "goal";
 
 export type Thread = {
   id: string;
+  kind: ThreadKind;
   text: string;
   openedSession: number;
   resolvedSession: number | null;
@@ -53,6 +86,9 @@ export type Character = {
   origin: string;
   fabulaPoints: number;
   notes: string;
+  sheet: Sheet;
+  portraitPath: string | null;
+  portraitUrl: string | null;
   bonds: Bond[];
 };
 

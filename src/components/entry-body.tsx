@@ -1,16 +1,21 @@
 import Link from "next/link";
-import { threadText, tokenize } from "@/lib/tags";
+import { goalText, threadText, tokenize } from "@/lib/tags";
 
-/** Testo di una voce di diario: i tag diventano link al compendio, le righe "?" vengono evidenziate. */
+/** Testo di una voce di diario: i tag diventano link al compendio, le righe "?" e "!" vengono evidenziate. */
 export function EntryBody({ body, campaignId }: { body: string; campaignId: string }) {
   return (
     <div className="max-w-[68ch] whitespace-pre-wrap">
       {body.split("\n").map((line, i) => {
         const t = threadText(line);
-        const content = <InlineTags text={t ?? line} campaignId={campaignId} />;
+        const g = t === null ? goalText(line) : null;
+        const content = <InlineTags text={t ?? g ?? line} campaignId={campaignId} />;
         return t !== null ? (
           <span key={i} className="my-1 block rounded-lg bg-thread-bg px-3 py-1 font-bold text-thread">
             ? {content}
+          </span>
+        ) : g !== null ? (
+          <span key={i} className="my-1 block rounded-lg bg-goal-bg px-3 py-1 font-bold text-goal">
+            ! {content}
           </span>
         ) : (
           <span key={i}>

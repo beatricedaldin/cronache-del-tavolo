@@ -9,9 +9,11 @@ export function CampaignNav({ campaignId, role }: { campaignId: string; role: Ro
   const base = `/c/${campaignId}`;
   const tabs = [
     { href: base, label: "Diario", exact: true },
+    { href: `${base}/cronologia`, label: "Cronologia" },
     { href: `${base}/compendio`, label: "Compendio" },
-    { href: `${base}/fili`, label: "Fili in sospeso" },
+    { href: `${base}/fili`, label: "Fili e obiettivi" },
     { href: `${base}/scheda`, label: role === "gm" ? "Giocatori" : "Scheda PG" },
+    { href: `${base}/cerca`, label: "🔍 Cerca" },
   ];
 
   return (

@@ -67,6 +67,19 @@ export async function signUpWithPassword(username: string, password: string, dis
   }
 }
 
+/** Cambia la password dell'utente collegato, dopo aver verificato quella attuale. */
+export async function changePassword(currentPassword: string, newPassword: string) {
+  const user = await getCurrentUser();
+  const supabase = await createClient();
+  const check = await supabase.auth.signInWithPassword({ email: toEmail(user.username), password: currentPassword });
+  if (check.error) throw new Error("La password attuale non è corretta.");
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) {
+    if (/different from the old/i.test(error.message)) throw new Error("La nuova password deve essere diversa da quella attuale.");
+    throw new Error(translateAuthError(error.message));
+  }
+}
+
 export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();

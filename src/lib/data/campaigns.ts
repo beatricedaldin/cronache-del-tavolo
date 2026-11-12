@@ -2,6 +2,8 @@ import "server-only";
 import { cache } from "react";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { dbError } from "./errors";
+import { signedUrls } from "./storage";
 import { getCurrentUser } from "./auth";
 import type { Campaign, CampaignSummary, Member, Role } from "./types";
 
@@ -13,7 +15,7 @@ export async function listMyCampaigns(): Promise<CampaignSummary[]> {
     .select("role, campaign:campaigns(id, name)")
     .eq("user_id", user.id)
     .order("joined_at", { ascending: false });
-  if (error) throw new Error(error.message);
+  if (error) throw dbError(error);
 
   return (data ?? []).flatMap((row) => {
     const c = row.campaign as unknown as { id: string; name: string } | null;
@@ -53,7 +55,7 @@ export async function createCampaign(name: string): Promise<string> {
   await getCurrentUser();
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("create_campaign", { p_name: name });
-  if (error) throw new Error(error.message);
+  if (error) throw dbError(error);
   return data as string;
 }
 
@@ -61,7 +63,7 @@ export async function joinCampaign(code: string): Promise<string> {
   await getCurrentUser();
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("join_campaign", { p_code: code });
-  if (error) throw new Error(error.message.includes("non valido") ? "Codice invito non valido" : error.message);
+  if (error) throw error.message.includes("non valido") ? new Error("Codice invito non valido") : dbError(error);
   return data as string;
 }
 
@@ -76,7 +78,7 @@ export async function listMembers(campaignId: string): Promise<Member[]> {
       .order("joined_at"),
     supabase.from("characters").select("owner_id, name").eq("campaign_id", campaignId),
   ]);
-  if (error) throw new Error(error.message);
+  if (error) throw dbError(error);
 
   const byOwner = new Map((chars ?? []).map((c) => [c.owner_id as string, c.name as string]));
   return (members ?? []).map((m) => ({
@@ -86,3 +88,21 @@ export async function listMembers(campaignId: string): Promise<Member[]> {
     characterName: byOwner.get(m.user_id) ?? null,
   }));
 }
+
+export type PartyMember = { userId: string; displayName: string; characterName: string | null; portraitUrl: string | null };
+
+/** Il gruppo: giocatori, nome del PG e ritratto. Lo vedono tutti i membri (il resto della scheda resta privato). */
+export const listParty = cache(async (campaignId: string): Promise<PartyMember[]> => {
+  await getCurrentUser();
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("campaign_party", { p_campaign: campaignId });
+  if (error) throw dbError(error);
+  const rows = (data ?? []) as { user_id: string; display_name: string; character_name: string | null; portrait_path: string | null }[];
+  const urls = await signedUrls("ritratti", rows.map((r) => r.portrait_path));
+  return rows.map((r) => ({
+    userId: r.user_id,
+    displayName: r.display_name,
+    characterName: r.character_name,
+    portraitUrl: r.portrait_path ? (urls.get(r.portrait_path) ?? null) : null,
+  }));
+});

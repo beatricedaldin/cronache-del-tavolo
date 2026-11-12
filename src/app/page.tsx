@@ -37,6 +37,9 @@ async function Account() {
       <span>
         Ciao, <b className="text-ink">{user.displayName}</b>
       </span>
+      <Link href="/account" className="btn-ghost">
+        Account
+      </Link>
       <button type="submit" className="btn-ghost">
         Esci
       </button>

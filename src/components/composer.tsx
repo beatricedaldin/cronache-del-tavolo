@@ -3,6 +3,7 @@
 import { useActionState, useRef } from "react";
 import { createEntryAction, type FormState } from "@/app/actions";
 import { tagSyntax, type TagKind } from "@/lib/tags";
+import { DateField } from "./date-field";
 import { SubmitButton } from "./submit-button";
 
 export function Composer({
@@ -32,6 +33,8 @@ export function Composer({
     <form action={action} className="panel flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="font-display text-xl font-bold">Diario di fine sessione</h2>
+        <div className="flex flex-wrap items-center gap-3">
+        <DateField key={`d${state.at ?? 0}`} defaultValue={state.values?.date} />
         <label className="flex items-center gap-2 text-sm text-muted">
           Sessione
           <input
@@ -44,6 +47,7 @@ export function Composer({
             aria-label="Numero di sessione"
           />
         </label>
+        </div>
       </div>
 
       <textarea
@@ -54,7 +58,7 @@ export function Composer({
         rows={6}
         required
         className="field min-h-36 resize-y leading-relaxed"
-        placeholder={"Cosa è successo stasera? Es.\n@Velia ci ha portati a #[Isola di Brina].\n? Chi ha rubato la bussola?"}
+        placeholder={"Cosa è successo stasera? Es.\n@Velia ci ha portati a #[Isola di Brina].\n? Chi ha rubato la bussola?\n! Ritrovare la bussola prima della luna nuova"}
       />
 
       {suggestions.length > 0 && (
@@ -73,15 +77,32 @@ export function Composer({
         </div>
       )}
 
+      <p className="text-sm text-muted lg:hidden">
+        <code className="font-mono text-xs">@Nome</code> personaggio · <code className="font-mono text-xs">#Luogo</code> luogo ·{" "}
+        <code className="font-mono text-xs">@[Due parole]</code> nomi lunghi · riga con <code className="font-mono text-xs">?</code>{" "}
+        filo · riga con <code className="font-mono text-xs">!</code> obiettivo
+      </p>
+
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted">
-          <code className="font-mono text-xs">@Nome</code> personaggio · <code className="font-mono text-xs">#Luogo</code>{" "}
-          luogo o fazione · <code className="font-mono text-xs">@[Due parole]</code> per nomi lunghi · riga con{" "}
-          <code className="font-mono text-xs">?</code> = filo in sospeso
-        </p>
+        <VisibilityToggle key={`p${state.at ?? 0}`} defaultChecked={state.values?.public === "on"} />
         <SubmitButton>Salva nel diario</SubmitButton>
       </div>
       {state.error && <p className="text-sm font-bold text-danger">{state.error}</p>}
     </form>
+  );
+}
+
+/** Privata (default) o pubblica. Usato da diario e note del compendio. */
+export function VisibilityToggle({ defaultChecked = false, name = "public" }: { defaultChecked?: boolean; name?: string }) {
+  return (
+    <label className="flex cursor-pointer items-center gap-2 text-sm">
+      <input type="checkbox" name={name} defaultChecked={defaultChecked} className="peer size-4 accent-accent" />
+      <span className="peer-checked:hidden">
+        🔒 <b>Privata</b> <span className="text-muted">· la vedete tu e il Master</span>
+      </span>
+      <span className="hidden peer-checked:inline">
+        🌍 <b>Pubblica</b> <span className="text-muted">· la vedono tutti</span>
+      </span>
+    </label>
   );
 }

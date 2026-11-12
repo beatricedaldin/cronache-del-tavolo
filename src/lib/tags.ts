@@ -5,6 +5,7 @@
  *   #Portocielo       luogo o fazione
  *   #[Culto del Sole] luogo o fazione con nome di più parole
  *   ? testo           una riga che inizia con "?" diventa un filo in sospeso
+ *   ! testo           una riga che inizia con "!" diventa un obiettivo
  *
  * I nomi in CamelCase vengono separati: #CultoDelSole -> "Culto Del Sole".
  */
@@ -59,20 +60,23 @@ export function extractTags(body: string): Tag[] {
   return [...seen.values()];
 }
 
-export function threadText(line: string): string | null {
+function prefixedText(line: string, prefix: string): string | null {
   const t = line.trim();
-  if (!t.startsWith("?")) return null;
-  const text = t.slice(1).trim();
-  return text.length > 0 ? text : null;
+  if (!t.startsWith(prefix)) return null;
+  const text = t.slice(prefix.length).trim();
+  return text.length > 0 ? text.slice(0, 300) : null;
 }
 
+export const threadText = (line: string) => prefixedText(line, "?");
+export const goalText = (line: string) => prefixedText(line, "!");
+
+const distinct = (xs: (string | null)[]) => [...new Set(xs.filter((t): t is string => t !== null))];
+
 /** Le righe che iniziano con "?" (senza il "?"). */
-export function extractThreads(body: string): string[] {
-  return body
-    .split("\n")
-    .map(threadText)
-    .filter((t): t is string => t !== null);
-}
+export const extractThreads = (body: string) => distinct(body.split("\n").map(threadText));
+
+/** Le righe che iniziano con "!" (senza il "!"). */
+export const extractGoals = (body: string) => distinct(body.split("\n").map(goalText));
 
 /** Come scrivere il tag di un'entità esistente nel composer. */
 export function tagSyntax(kind: TagKind, name: string): string {

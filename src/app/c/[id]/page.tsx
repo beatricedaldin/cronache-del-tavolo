@@ -7,6 +7,7 @@ import { listEntityNames } from "@/lib/data/compendium";
 import { listThreads } from "@/lib/data/threads";
 import { Composer } from "@/components/composer";
 import { EntryCard } from "@/components/entry-card";
+import { SyntaxLegend } from "@/components/syntax-legend";
 import { ThreadItem } from "@/components/thread-item";
 
 export default function DiaryPage({ params }: PageProps<"/c/[id]">) {
@@ -39,7 +40,7 @@ async function Diary({ params }: { params: Promise<{ id: string }> }) {
             <p className="italic text-muted">
               {isGm
                 ? "Nessuno ha ancora scritto nel diario."
-                : "Il tuo diario è vuoto. Scrivi cosa ricordi dell'ultima sessione."}
+                : "Il diario è vuoto. Scrivi cosa ricordi dell'ultima sessione: le voci pubbliche le leggerà tutto il gruppo."}
             </p>
           ) : (
             entries.map((e) => (
@@ -49,10 +50,12 @@ async function Diary({ params }: { params: Promise<{ id: string }> }) {
         </section>
       </div>
 
-      <aside className="panel flex flex-col">
-        <h2 className="label">Fili aperti</h2>
+      <aside className="flex flex-col gap-5 lg:sticky lg:top-4">
+        <SyntaxLegend className="hidden lg:flex" />
+        <div className="panel flex flex-col">
+        <h2 className="label">Fili e obiettivi aperti</h2>
         {open.length === 0 ? (
-          <p className="mt-2 text-sm italic text-muted">Nessun filo aperto.</p>
+          <p className="mt-2 text-sm italic text-muted">Niente di aperto.</p>
         ) : (
           open
             .slice(0, 6)
@@ -70,6 +73,7 @@ async function Diary({ params }: { params: Promise<{ id: string }> }) {
         <Link href={`/c/${id}/fili`} className="btn-ghost mt-3 self-start">
           Vedi tutti
         </Link>
+        </div>
       </aside>
     </div>
   );
