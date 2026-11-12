@@ -15,10 +15,8 @@ La regola è applicata dal database con Row Level Security ([supabase/migrations
 ## Primo avvio
 
 1. Crea un progetto gratuito su [supabase.com](https://supabase.com).
-2. In **SQL Editor** incolla ed esegui `supabase/migrations/0001_init.sql`.
-3. In **Authentication > URL Configuration** imposta:
-   - Site URL: `http://localhost:3000`
-   - Redirect URLs: `http://localhost:3000/auth/callback`
+2. In **SQL Editor** incolla ed esegui, in ordine, il contenuto di `supabase/migrations/0001_init.sql` e di `supabase/migrations/0002_grants.sql`.
+3. In **Authentication > Sign In / Providers > Email**: lascia attivo il provider Email e **disattiva "Confirm email"**. L'accesso è con nome utente e password e l'app non invia mai email.
 4. Copia `.env.example` in `.env.local` e inserisci URL e Publishable key (**Project Settings > API Keys**).
 5. Avvia:
 
@@ -27,9 +25,16 @@ La regola è applicata dal database con Row Level Security ([supabase/migrations
    pnpm dev
    ```
 
-6. Apri http://localhost:3000, accedi con il link via email, crea la campagna e passa il codice invito ai giocatori.
+6. Apri http://localhost:3000 e crea un account. Chi crea una campagna ne diventa il **Master** e riceve il codice invito da passare ai giocatori. I giocatori creano il proprio account e inseriscono il codice.
 
-> Il servizio email integrato di Supabase ha un limite basso di invii orari, sufficiente per un gruppo piccolo. Per usi più intensi conviene configurare un SMTP (Authentication > Emails).
+> **Accesso senza email.** Supabase vuole comunque un'email: l'app la ricava dal nome utente (`nome@giocatori.cronache-del-tavolo.local`) e non la usa per inviare nulla. Non esiste "password dimenticata": la reimposta chi gestisce il progetto, da **Authentication > Users** nella dashboard di Supabase.
+
+## Online su Vercel
+
+1. Importa il repository GitHub su [vercel.com](https://vercel.com) (Next.js e pnpm vengono riconosciuti da soli).
+2. In **Settings > Environment Variables** aggiungi `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, poi rifai il deploy.
+
+Non serve configurare URL di redirect in Supabase: senza link via email non ci sono redirect.
 
 ## Sintassi del diario
 

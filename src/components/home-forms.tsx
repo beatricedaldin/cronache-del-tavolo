@@ -1,26 +1,54 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { createCampaignAction, joinCampaignAction, loginAction, type FormState } from "@/app/actions";
 import { SubmitButton } from "./submit-button";
 
 export function LoginForm() {
   const [state, action] = useActionState<FormState, FormData>(loginAction, {});
-  if (state.ok) return <p className="panel font-bold">{state.message}</p>;
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const signup = mode === "signup";
+  const v = state.values ?? {};
 
   return (
-    <form action={action} className="panel flex flex-col gap-4">
+    <form key={state.at} action={action} className="panel flex flex-col gap-4">
+      <input type="hidden" name="mode" value={mode} />
+      <h2 className="font-display text-xl font-bold">{signup ? "Crea il tuo account" : "Accedi"}</h2>
       <label className="flex flex-col gap-1.5">
-        <span className="label">Email</span>
-        <input name="email" type="email" required autoComplete="email" className="field" placeholder="tu@esempio.it" />
+        <span className="label">Nome utente</span>
+        <input
+          name="username"
+          required
+          defaultValue={v.username}
+          autoComplete="username"
+          autoCapitalize="none"
+          spellCheck={false}
+          className="field"
+          placeholder="es. giulia"
+        />
       </label>
       <label className="flex flex-col gap-1.5">
-        <span className="label">Come ti chiamano al tavolo (solo al primo accesso)</span>
-        <input name="name" type="text" autoComplete="nickname" className="field" placeholder="Es. Giulia" />
+        <span className="label">Password</span>
+        <input
+          name="password"
+          type="password"
+          required
+          minLength={6}
+          autoComplete={signup ? "new-password" : "current-password"}
+          className="field"
+        />
       </label>
-      <SubmitButton>Mandami il link d&apos;accesso</SubmitButton>
+      {signup && (
+        <label className="flex flex-col gap-1.5">
+          <span className="label">Come ti chiamano al tavolo</span>
+          <input name="name" defaultValue={v.name} autoComplete="nickname" className="field" placeholder="Es. Giulia" />
+        </label>
+      )}
+      <SubmitButton>{signup ? "Crea account" : "Entra"}</SubmitButton>
       {state.error && <p className="text-sm font-bold text-danger">{state.error}</p>}
-      <p className="text-sm text-muted">Niente password: ricevi un link via email e sei dentro.</p>
+      <button type="button" className="btn-ghost self-start text-sm" onClick={() => setMode(signup ? "signin" : "signup")}>
+        {signup ? "Hai già un account? Accedi" : "Prima volta? Crea un account"}
+      </button>
     </form>
   );
 }

@@ -2,7 +2,7 @@ import type { TagKind } from "@/lib/tags";
 
 export type Role = "gm" | "player";
 
-export type CurrentUser = { id: string; email: string; displayName: string };
+export type CurrentUser = { id: string; username: string; displayName: string };
 
 export type CampaignSummary = { id: string; name: string; role: Role };
 

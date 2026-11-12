@@ -1,9 +1,8 @@
 "use server";
 
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { signInWithMagicLink, signOut } from "@/lib/data/auth";
+import { normalizeUsername, signInWithPassword, signOut, signUpWithPassword, USERNAME_PATTERN } from "@/lib/data/auth";
 import { createCampaign, joinCampaign } from "@/lib/data/campaigns";
 import { createEntry, deleteEntry } from "@/lib/data/diary";
 import { setThreadResolved } from "@/lib/data/threads";
@@ -26,26 +25,32 @@ const int = (fd: FormData, key: string, fallback: number) => {
 };
 const errorMessage = (e: unknown) => (e instanceof Error ? e.message : "Qualcosa è andato storto. Riprova.");
 
-async function siteOrigin() {
-  if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, "");
-  const h = await headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
-  const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
-  return `${proto}://${host}`;
-}
-
 // --- Accesso -----------------------------------------------------------------
 
 export async function loginAction(_: FormState, fd: FormData): Promise<FormState> {
-  const email = str(fd, "email");
+  const mode = str(fd, "mode") === "signup" ? "signup" : "signin";
+  const username = normalizeUsername(str(fd, "username"));
+  const password = String(fd.get("password") ?? "");
   const name = str(fd, "name");
-  if (!/^\S+@\S+\.\S+$/.test(email)) return { error: "Inserisci un indirizzo email valido." };
-  try {
-    await signInWithMagicLink(email, `${await siteOrigin()}/auth/callback`, name || undefined);
-    return { ok: true, message: `Ti abbiamo mandato un link d'accesso a ${email}. Aprilo da questo dispositivo.` };
-  } catch (e) {
-    return { error: errorMessage(e) };
+  const at = Date.now();
+  const keep = { username, name, mode };
+
+  if (!USERNAME_PATTERN.test(username)) {
+    return {
+      error: "Il nome utente va da 3 a 30 caratteri: lettere minuscole, numeri, punto, trattino o trattino basso.",
+      values: keep,
+      at,
+    };
   }
+  if (password.length < 6) return { error: "La password deve avere almeno 6 caratteri.", values: keep, at };
+
+  try {
+    if (mode === "signup") await signUpWithPassword(username, password, name || undefined);
+    else await signInWithPassword(username, password);
+  } catch (e) {
+    return { error: errorMessage(e), values: keep, at };
+  }
+  redirect("/");
 }
 
 export async function signOutAction() {
