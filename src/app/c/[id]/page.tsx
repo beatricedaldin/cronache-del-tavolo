@@ -5,6 +5,11 @@ import { getCampaign } from "@/lib/data/campaigns";
 import { latestSessionNumber, listEntries } from "@/lib/data/diary";
 import { listEntityNames } from "@/lib/data/compendium";
 import { listThreads } from "@/lib/data/threads";
+import { listQuotes } from "@/lib/data/quotes";
+import { QuoteCard } from "@/components/quotes";
+import { RecapCard } from "@/components/ai";
+import { aiAvailable } from "@/lib/ai";
+import { getMyRecap } from "@/lib/data/ai";
 import { Composer } from "@/components/composer";
 import { EntryCard } from "@/components/entry-card";
 import { SyntaxLegend } from "@/components/syntax-legend";
@@ -20,13 +25,14 @@ export default function DiaryPage({ params }: PageProps<"/c/[id]">) {
 
 async function Diary({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [user, campaign, entries, session, names, threads] = await Promise.all([
+  const [user, campaign, entries, session, names, threads, quotes] = await Promise.all([
     getCurrentUser(),
     getCampaign(id),
     listEntries(id),
     latestSessionNumber(id),
     listEntityNames(id),
     listThreads(id),
+    listQuotes(id, 1),
   ]);
   const isGm = campaign.role === "gm";
   const open = threads.filter((t) => t.resolvedSession === null);
@@ -34,7 +40,12 @@ async function Diary({ params }: { params: Promise<{ id: string }> }) {
   return (
     <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
       <div className="flex min-w-0 flex-col gap-5">
-        <Composer campaignId={id} defaultSession={session} suggestions={names} />
+        {aiAvailable() && entries.length > 0 && (
+          <Suspense fallback={null}>
+            <Recap campaignId={id} />
+          </Suspense>
+        )}
+        <Composer campaignId={id} defaultSession={session} suggestions={names} aiEnabled={aiAvailable()} />
         <section className="panel">
           {entries.length === 0 ? (
             <p className="italic text-muted">
@@ -52,6 +63,20 @@ async function Diary({ params }: { params: Promise<{ id: string }> }) {
 
       <aside className="flex flex-col gap-5 lg:sticky lg:top-4">
         <SyntaxLegend className="hidden lg:flex" />
+        {quotes[0] && (
+          <div className="flex flex-col gap-2">
+            <h2 className="label">L&apos;ultima frase memorabile</h2>
+            <QuoteCard
+              campaignId={id}
+              quote={quotes[0]}
+              mine={quotes[0].authorId === user.id}
+              canDelete={quotes[0].authorId === user.id || isGm}
+            />
+            <Link href={`/c/${id}/frasi`} className="btn-ghost self-start">
+              Tutte le frasi
+            </Link>
+          </div>
+        )}
         <div className="panel flex flex-col">
         <h2 className="label">Fili e obiettivi aperti</h2>
         {open.length === 0 ? (
@@ -77,4 +102,10 @@ async function Diary({ params }: { params: Promise<{ id: string }> }) {
       </aside>
     </div>
   );
+}
+
+async function Recap({ campaignId }: { campaignId: string }) {
+  const { recap, session } = await getMyRecap(campaignId);
+  if (session === 0) return null;
+  return <RecapCard campaignId={campaignId} session={session} initial={recap} />;
 }

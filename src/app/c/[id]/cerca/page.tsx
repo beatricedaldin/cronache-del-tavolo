@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { getCurrentUser } from "@/lib/data/auth";
 import { search } from "@/lib/data/search";
 import { formatDay } from "@/lib/dates";
-import { EntryBody, InlineTags } from "@/components/entry-body";
+import { EntryBody, InlineTags, RichInline } from "@/components/entry-body";
 
 export const metadata: Metadata = { title: "Cerca" };
 
@@ -26,7 +26,8 @@ async function Search({
   const [{ id }, sp] = await Promise.all([params, searchParams]);
   const q = typeof sp.q === "string" ? sp.q.trim() : "";
   const [user, results] = await Promise.all([getCurrentUser(), search(id, q)]);
-  const total = results.entries.length + results.entities.length + results.notes.length + results.threads.length;
+  const total =
+    results.entries.length + results.entities.length + results.notes.length + results.threads.length + results.quotes.length;
 
   return (
     <div className="flex flex-col gap-5">
@@ -47,7 +48,7 @@ async function Search({
       </form>
 
       {q.length < 2 ? (
-        <p className="text-muted">Cerca in diario, compendio, note, fili e obiettivi. Trovi solo quello che puoi già leggere.</p>
+        <p className="text-muted">Cerca in diario, compendio, note, frasi, fili e obiettivi. Trovi solo quello che puoi già leggere.</p>
       ) : total === 0 ? (
         <p className="panel text-muted">Nessun risultato per «{q}».</p>
       ) : (
@@ -99,11 +100,27 @@ async function Search({
                     </Link>{" "}
                     · {n.ownerName} {n.isPublic ? "🌍" : "🔒"}
                   </p>
-                  <p className="whitespace-pre-wrap">
-                    <InlineTags text={n.body} campaignId={id} />
-                  </p>
+                  <EntryBody body={n.body} campaignId={id} markers={false} />
                 </div>
               ))}
+            </Group>
+          )}
+
+          {results.quotes.length > 0 && (
+            <Group title="Frasi memorabili">
+              <ul className="flex flex-col gap-2">
+                {results.quotes.map((x) => (
+                  <li key={x.id} className="border-l-4 border-gold pl-3">
+                    <span className="font-display text-lg italic">
+                      «<RichInline text={x.text} campaignId={id} />»
+                    </span>{" "}
+                    <span className="text-sm font-bold">
+                      — <RichInline text={x.speaker} campaignId={id} />
+                    </span>
+                    {x.sessionNumber && <span className="session ml-2">S{x.sessionNumber}</span>}
+                  </li>
+                ))}
+              </ul>
             </Group>
           )}
 

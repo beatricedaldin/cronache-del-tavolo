@@ -21,7 +21,19 @@ import {
   setMyPortrait,
   updateBond,
 } from "@/lib/data/characters";
-import { addNote, deleteNote, removeCardImage, saveCard, setCardImage, updateNote } from "@/lib/data/compendium";
+import {
+  addNote,
+  addRelation,
+  deleteNote,
+  deleteRelation,
+  listTagNames,
+  removeEntityImage,
+  saveCard,
+  setEntityImage,
+  updateNote,
+} from "@/lib/data/compendium";
+import { addQuote, deleteQuote, updateQuote, type QuoteInput } from "@/lib/data/quotes";
+import { addItem, addLedgerEntry, deleteItem, deleteLedgerEntry, updateItem, type ItemInput } from "@/lib/data/party";
 import type { TagKind } from "@/lib/tags";
 import { normalizeSheet } from "@/lib/fabula";
 
@@ -171,6 +183,15 @@ export async function deleteThreadAction(campaignId: string, threadId: string) {
 
 // --- Compendio ---------------------------------------------------------------
 
+/** I nomi per i suggerimenti di @ e # mentre si scrive. */
+export async function tagNamesAction(campaignId: string): Promise<{ kind: TagKind; name: string }[]> {
+  try {
+    return await listTagNames(campaignId);
+  } catch {
+    return [];
+  }
+}
+
 const kindOf = (fd: FormData): TagKind => (str(fd, "kind") === "place" ? "place" : "npc");
 const compendiumPath = (campaignId: string, kind: TagKind, slug: string) => `/c/${campaignId}/compendio/${kind}/${slug}`;
 
@@ -202,9 +223,9 @@ export async function createCardAction(campaignId: string, _: FormState, fd: For
   redirect(compendiumPath(campaignId, kind, slug));
 }
 
-export async function setCardImageAction(campaignId: string, kind: TagKind, slug: string, name: string, _: FormState, fd: FormData): Promise<FormState> {
+export async function setEntityImageAction(campaignId: string, kind: TagKind, slug: string, name: string, _: FormState, fd: FormData): Promise<FormState> {
   try {
-    await setCardImage(campaignId, kind, slug, name, fd.get("image"));
+    await setEntityImage(campaignId, kind, slug, name, fd.get("image"));
   } catch (e) {
     return { error: errorMessage(e) };
   }
@@ -212,8 +233,8 @@ export async function setCardImageAction(campaignId: string, kind: TagKind, slug
   return { ok: true, at: Date.now() };
 }
 
-export async function removeCardImageAction(campaignId: string, kind: TagKind, slug: string) {
-  await removeCardImage(campaignId, kind, slug);
+export async function removeEntityImageAction(campaignId: string, kind: TagKind, slug: string) {
+  await removeEntityImage(campaignId, kind, slug);
   revalidatePath(`/c/${campaignId}`, "layout");
 }
 
@@ -337,4 +358,146 @@ export async function changePasswordAction(_: FormState, fd: FormData): Promise<
     return { error: errorMessage(e), at };
   }
   return { ok: true, message: "Password cambiata.", at };
+}
+
+// --- Frasi memorabili --------------------------------------------------------
+
+function quoteFrom(fd: FormData): QuoteInput | string {
+  const speaker = str(fd, "speaker").slice(0, 80);
+  const text = str(fd, "text").slice(0, 1000);
+  if (!text) return "Scrivi la frase.";
+  if (!speaker) return "Chi l'ha detta?";
+  const session = int(fd, "session", 0);
+  return { speaker, text, context: str(fd, "context").slice(0, 300), sessionNumber: session > 0 ? session : null, date: dateOf(fd) };
+}
+
+export async function addQuoteAction(campaignId: string, _: FormState, fd: FormData): Promise<FormState> {
+  const input = quoteFrom(fd);
+  const at = Date.now();
+  const keep = { speaker: str(fd, "speaker"), text: str(fd, "text"), context: str(fd, "context"), session: str(fd, "session"), date: str(fd, "date") };
+  if (typeof input === "string") return { error: input, values: keep, at };
+  try {
+    await addQuote(campaignId, input);
+  } catch (e) {
+    return { error: errorMessage(e), values: keep, at };
+  }
+  revalidatePath(`/c/${campaignId}`, "layout");
+  return { ok: true, values: { session: keep.session, date: keep.date }, at };
+}
+
+export async function updateQuoteAction(campaignId: string, quoteId: string, _: FormState, fd: FormData): Promise<FormState> {
+  const input = quoteFrom(fd);
+  if (typeof input === "string") return { error: input };
+  try {
+    await updateQuote(quoteId, input);
+  } catch (e) {
+    return { error: errorMessage(e) };
+  }
+  revalidatePath(`/c/${campaignId}`, "layout");
+  return { ok: true, at: Date.now() };
+}
+
+export async function deleteQuoteAction(campaignId: string, quoteId: string) {
+  await deleteQuote(quoteId);
+  revalidatePath(`/c/${campaignId}`, "layout");
+}
+
+// --- Relazioni del compendio -------------------------------------------------
+
+export async function addRelationAction(
+  campaignId: string,
+  fromKind: TagKind,
+  fromSlug: string,
+  fromName: string,
+  _: FormState,
+  fd: FormData,
+): Promise<FormState> {
+  const label = str(fd, "label").slice(0, 60);
+  const toName = str(fd, "toName").replace(/^[@#]\[?|\]$/g, "").trim().slice(0, 80);
+  const toKind: TagKind = str(fd, "toKind") === "place" ? "place" : "npc";
+  const isPublic = fd.get("public") === "on";
+  const at = Date.now();
+  const keep = { label, toName, toKind, public: isPublic ? "on" : "" };
+  if (!label) return { error: "Che relazione è? Es. «sorella di».", values: keep, at };
+  if (!toName) return { error: "Con chi o cosa?", values: keep, at };
+  try {
+    await addRelation(campaignId, { from: { kind: fromKind, slug: fromSlug, name: fromName }, label, to: { kind: toKind, name: toName }, isPublic });
+  } catch (e) {
+    return { error: errorMessage(e), values: keep, at };
+  }
+  revalidatePath(`/c/${campaignId}`, "layout");
+  return { ok: true, values: { public: keep.public, toKind }, at };
+}
+
+export async function deleteRelationAction(campaignId: string, relationId: string) {
+  await deleteRelation(relationId);
+  revalidatePath(`/c/${campaignId}`, "layout");
+}
+
+// --- Cassa e inventario del gruppo ---------------------------------------------
+
+export async function addLedgerAction(campaignId: string, _: FormState, fd: FormData): Promise<FormState> {
+  const raw = int(fd, "amount", 0);
+  const amount = str(fd, "direction") === "out" ? -Math.abs(raw) : Math.abs(raw);
+  const reason = str(fd, "reason").slice(0, 200);
+  const at = Date.now();
+  const keep = { amount: str(fd, "amount"), reason, direction: str(fd, "direction"), session: str(fd, "session"), date: str(fd, "date") };
+  if (!raw) return { error: "Quanti Zenit?", values: keep, at };
+  if (!reason) return { error: "Scrivi il motivo (es. «ricompensa del borgomastro»).", values: keep, at };
+  const session = int(fd, "session", 0);
+  try {
+    await addLedgerEntry(campaignId, { amount, reason, sessionNumber: session > 0 ? session : null, date: dateOf(fd) });
+  } catch (e) {
+    return { error: errorMessage(e), values: keep, at };
+  }
+  revalidatePath(`/c/${campaignId}`, "layout");
+  return { ok: true, values: { direction: keep.direction, session: keep.session, date: keep.date }, at };
+}
+
+export async function deleteLedgerAction(campaignId: string, id: string) {
+  await deleteLedgerEntry(id);
+  revalidatePath(`/c/${campaignId}`, "layout");
+}
+
+function itemFrom(fd: FormData): ItemInput | string {
+  const name = str(fd, "name").slice(0, 100);
+  if (!name) return "Come si chiama l'oggetto?";
+  return {
+    name,
+    description: str(fd, "description").slice(0, 1000),
+    quantity: Math.max(0, Math.min(9999, int(fd, "quantity", 1))),
+    holder: str(fd, "holder").slice(0, 80),
+    gone: fd.get("gone") === "on",
+    goneNote: str(fd, "goneNote").slice(0, 200),
+  };
+}
+
+export async function addItemAction(campaignId: string, _: FormState, fd: FormData): Promise<FormState> {
+  const input = itemFrom(fd);
+  const at = Date.now();
+  if (typeof input === "string") return { error: input, at };
+  try {
+    await addItem(campaignId, input);
+  } catch (e) {
+    return { error: errorMessage(e), at };
+  }
+  revalidatePath(`/c/${campaignId}`, "layout");
+  return { ok: true, at };
+}
+
+export async function updateItemAction(campaignId: string, id: string, _: FormState, fd: FormData): Promise<FormState> {
+  const input = itemFrom(fd);
+  if (typeof input === "string") return { error: input };
+  try {
+    await updateItem(id, input);
+  } catch (e) {
+    return { error: errorMessage(e) };
+  }
+  revalidatePath(`/c/${campaignId}`, "layout");
+  return { ok: true, at: Date.now() };
+}
+
+export async function deleteItemAction(campaignId: string, id: string) {
+  await deleteItem(id);
+  revalidatePath(`/c/${campaignId}`, "layout");
 }

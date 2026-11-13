@@ -4,6 +4,7 @@ import type { TagKind } from "@/lib/tags";
 import { dbError } from "./errors";
 import { getCurrentUser } from "./auth";
 import { ENTRY_COLUMNS, toEntry, type EntryRow } from "./diary";
+import { listQuotes, type Quote } from "./quotes";
 import { listThreads } from "./threads";
 import type { Entry, Thread } from "./types";
 
@@ -17,6 +18,7 @@ export type TimelineSession = {
   /** Tutti quelli citati in questa sessione. */
   mentioned: TimelineEntity[];
   opened: Thread[];
+  quotes: Quote[];
   closed: Thread[];
 };
 
@@ -26,7 +28,7 @@ type Row = EntryRow & { entry_mentions: { entity: TimelineEntity | null }[] };
 export async function getTimeline(campaignId: string): Promise<TimelineSession[]> {
   await getCurrentUser();
   const supabase = await createClient();
-  const [{ data, error }, threads] = await Promise.all([
+  const [{ data, error }, threads, quotes] = await Promise.all([
     supabase
       .from("entries")
       .select(`${ENTRY_COLUMNS}, entry_mentions(entity:entities(kind, slug, name))`)
@@ -35,6 +37,7 @@ export async function getTimeline(campaignId: string): Promise<TimelineSession[]
       .order("entry_date")
       .order("created_at"),
     listThreads(campaignId),
+    listQuotes(campaignId),
   ]);
   if (error) throw dbError(error);
 
@@ -42,7 +45,7 @@ export async function getTimeline(campaignId: string): Promise<TimelineSession[]
   const session = (n: number) => {
     let s = sessions.get(n);
     if (!s) {
-      s = { number: n, entries: [], firstAppearances: [], mentioned: [], opened: [], closed: [] };
+      s = { number: n, entries: [], firstAppearances: [], mentioned: [], opened: [], closed: [], quotes: [] };
       sessions.set(n, s);
     }
     return s;
@@ -66,6 +69,7 @@ export async function getTimeline(campaignId: string): Promise<TimelineSession[]
     session(t.openedSession).opened.push(t);
     if (t.resolvedSession !== null) session(t.resolvedSession).closed.push(t);
   }
+  for (const q of quotes) if (q.sessionNumber !== null) session(q.sessionNumber).quotes.push(q);
 
   return [...sessions.values()].sort((a, b) => b.number - a.number);
 }

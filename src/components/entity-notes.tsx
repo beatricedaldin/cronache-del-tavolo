@@ -5,16 +5,18 @@ import { addNoteAction, deleteNoteAction, updateNoteAction, type FormState } fro
 import type { EntityNote } from "@/lib/data/types";
 import type { TagKind } from "@/lib/tags";
 import { VisibilityToggle } from "./composer";
-import { InlineTags } from "./entry-body";
+import { EntryBody } from "./entry-body";
 import { formatDay } from "@/lib/dates";
 import { DateField } from "./date-field";
 import { SubmitButton } from "./submit-button";
+import { TagTextarea } from "./tag-textarea";
 
 export function NoteForm({ campaignId, kind, slug, name }: { campaignId: string; kind: TagKind; slug: string; name: string }) {
   const [state, action] = useActionState<FormState, FormData>(addNoteAction.bind(null, campaignId, kind, slug, name), {});
   return (
     <form key={state.at} action={action} className="flex flex-col gap-3">
-      <textarea
+      <TagTextarea
+        campaignId={campaignId}
         name="body"
         required
         rows={3}
@@ -81,7 +83,16 @@ export function NoteItem({
       </p>
       {editing ? (
         <form action={action} className="flex flex-col gap-2">
-          <textarea name="body" required rows={3} maxLength={5000} defaultValue={note.body} className="field resize-y" autoFocus />
+          <TagTextarea
+            campaignId={campaignId}
+            name="body"
+            required
+            rows={3}
+            maxLength={5000}
+            defaultValue={note.body}
+            className="field resize-y"
+            autoFocus
+          />
           <div className="flex flex-wrap items-center gap-3">
             <DateField defaultValue={note.date} />
             <VisibilityToggle defaultChecked={note.isPublic} />
@@ -93,9 +104,7 @@ export function NoteItem({
           </div>
         </form>
       ) : (
-        <p className="whitespace-pre-wrap">
-          <InlineTags text={note.body} campaignId={campaignId} />
-        </p>
+        <EntryBody body={note.body} campaignId={campaignId} markers={false} />
       )}
     </li>
   );

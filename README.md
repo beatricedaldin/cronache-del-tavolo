@@ -11,6 +11,7 @@ Schede, diario e memoria condivisa per una campagna di Fabula Ultima.
   - privata: la leggono l'autore e il Master
   - pubblica: la leggono tutti i membri della campagna
 - **Nome e ritratto dei PG** li vedono tutti al tavolo (striscia "Il gruppo" in cima alla campagna).
+- **Frasi memorabili** le vedono tutti; **relazioni** del compendio private o pubbliche come le note.
 - **Il resto della scheda, legami, fili in sospeso e obiettivi** sono sempre privati: li vedono il giocatore e il Master.
 - La **scheda pubblica** di un personaggio o luogo del compendio (descrizione e immagine) la scrive solo il Master e la leggono tutti.
 - Ognuno modifica solo le proprie cose, Master compreso.
@@ -60,6 +61,11 @@ Le regole (formule di PV/PM/PI, Difesa, limiti di livello e di Legami, status) s
 | `#[Culto del Sole]` | luogo o fazione con nome di più parole |
 | `? Chi ha rubato la bussola?` | filo in sospeso, da spuntare quando è risolto |
 | `! Ritrovare la bussola` | obiettivo, da spuntare quando è raggiunto |
+| `**grassetto**` · `*corsivo*` | formattazione (vale anche in note e descrizioni) |
+| `- voce` | elenco puntato |
+| `> frase` | citazione |
+
+Scrivendo `@` o `#` compaiono i personaggi e i luoghi già noti: ↑ ↓ per scegliere, Invio o Tab per inserire.
 
 Fili e obiettivi restano privati anche se la voce è pubblica. Si possono aggiungere anche a mano dalla pagina *Fili e obiettivi*.
 
@@ -72,6 +78,9 @@ Fili e obiettivi restano privati anche se la voce è pubblica. Si possono aggiun
 - **Esporta**: scarica in Markdown tutto quello che vedi della campagna.
 - **Immagini** (compendio e ritratti) in Supabase Storage, in bucket privati. Vengono ridimensionate nel browser prima del caricamento.
 - **Account**: cambio password dall'app.
+- **Frasi memorabili**: le citazioni dette al tavolo, visibili a tutti (chi le trascrive le modifica, il Master può toglierle). L'ultima compare accanto al diario.
+- **Cassa e inventario del gruppo**: Zenit comuni (registro di entrate e uscite) e oggetti del gruppo con chi li porta. Li vedono e aggiornano tutti; cancellare spetta a chi ha inserito o al Master.
+- **Relazioni** nel compendio ("Velia → sorella di → Mastro Odo"), private o pubbliche come le note, visibili sulla pagina di entrambi.
 
 ## Struttura
 
@@ -92,7 +101,39 @@ supabase/tests/       test delle regole di visibilità (da eseguire nell'SQL Edi
 
 Le pagine e i componenti non importano mai Supabase direttamente: passano da `src/lib/data`. Per cambiare backend (PocketBase, un'API propria, Drupal per i contenuti…) basta riscrivere quel livello.
 
+## Funzioni AI (facoltative)
+
+Con una chiave di Gemini si attivano:
+
+- **✨ La scorsa volta…** in cima al diario: un riassunto personale dell'ultima sessione, da leggere a casa prima di giocare. Si salva (tabella `ai_recaps`) e lo vede solo chi l'ha generato.
+- **✨ Cosa so di…?** nella pagina di ogni personaggio o luogo del compendio.
+- **✨ In prosa** e **✨ Suggerisci tag** nel diario: dagli appunti a una pagina nella voce del tuo PG; proposte di `@`, `#`, `?` e `!` da applicare con una spunta. Niente si salva finché non premi «Salva nel diario».
+- **📖 Il Libro della Campagna**: un capitolo per sessione, personale, da stampare o scaricare in Markdown.
+
+All'AI arriva **solo quello che l'utente può già leggere** (stesse funzioni e regole RLS dell'app). Si usa `generateContent` di Gemini, che non conserva le richieste. Per attivarle:
+
+1. Crea una chiave gratuita su [Google AI Studio](https://aistudio.google.com/apikey).
+2. Aggiungi `GEMINI_API_KEY` in `.env.local` e nelle variabili d'ambiente di Vercel (**senza** `NEXT_PUBLIC_`: resta sul server).
+3. Facoltativo: `GEMINI_MODEL` (default `gemini-3.5-flash-lite`).
+
+Il codice dell'AI è tutto in [src/lib/ai/](src/lib/ai/): per cambiare servizio basta aggiungere lì un'altra funzione.
+
+## Test
+
+- **Regole di visibilità (SQL):** [supabase/tests/visibilita.sql](supabase/tests/visibilita.sql), da incollare nell'SQL Editor di Supabase.
+- **Tutto, con un browser vero:** `pnpm test:e2e` (serve Docker). Avvia un Supabase completo in locale, ricrea il database con tutte le migrazioni, esegue il test SQL e poi [e2e/campagna.spec.ts](e2e/campagna.spec.ts): un Master, due giocatori e un estraneo, ciascuno nel suo browser, sia in formato telefono che computer. L'AI usa un servizio finto (`AI_PROVIDER=finto`): niente chiave, niente quota. Il rapporto si apre con `pnpm exec playwright show-report`.
+
+Conviene lanciarlo prima di ogni push. Per spegnere il Supabase locale: `pnpm exec supabase stop`.
+
+## App sul telefono (PWA)
+
+Si installa come un'app, con la sua icona:
+
+- **Android (Chrome):** compare l'invito "Installa" nella pagina di accesso e in home, oppure menu ⋮ → *Installa app*.
+- **iPhone/iPad (Safari):** *Condividi* → *Aggiungi alla schermata Home* (l'app lo spiega con un riquadro).
+
+Il service worker ([public/sw.js](public/sw.js)) è volutamente minimo: **non** salva pagine in cache, perché diari e schede sono privati e il telefono potrebbe essere condiviso. Senza connessione mostra solo un messaggio chiaro. Le icone si rigenerano con `pnpm icone` ([scripts/genera-icone.mjs](scripts/genera-icone.mjs)).
+
 ## Prossimi passi
 
-- PWA (manifest + icone) per installarla su telefono e tablet
 - Possibilità per il Master di "rivelare" una nota a un singolo giocatore

@@ -5,7 +5,7 @@ import { dbError } from "./errors";
 import { getCurrentUser } from "./auth";
 import { ENTRY_COLUMNS, toEntry, type EntryRow } from "./diary";
 import { checkImage, randomName, removeImage, signedUrls, uploadImage } from "./storage";
-import type { EntityCard, EntityDetail, EntityNote, EntitySummary } from "./types";
+import type { EntityCard, EntityDetail, EntityImage, EntityNote, EntityRelation, EntitySummary } from "./types";
 
 type EntityRow = {
   kind: TagKind;
@@ -26,14 +26,16 @@ const key = (kind: string, slug: string) => `${kind}:${slug}`;
 export async function listEntities(campaignId: string): Promise<EntitySummary[]> {
   await getCurrentUser();
   const supabase = await createClient();
-  const [entities, cards, notes] = await Promise.all([
+  const [entities, cards, notes, relations] = await Promise.all([
     supabase
       .from("entities")
       .select("kind, slug, name, owner_id, entry_mentions(entry:entries(session_number))")
       .eq("campaign_id", campaignId),
     supabase.from("entity_cards").select("kind, slug, name").eq("campaign_id", campaignId),
     supabase.from("entity_notes").select("kind, slug, name").eq("campaign_id", campaignId),
+    supabase.from("entity_relations").select("from_kind, from_slug, from_name, to_kind, to_slug, to_name").eq("campaign_id", campaignId),
   ]);
+  if (relations.error) throw dbError(relations.error);
   if (entities.error) throw dbError(entities.error);
   if (cards.error) throw dbError(cards.error);
   if (notes.error) throw dbError(notes.error);
@@ -68,6 +70,10 @@ export async function listEntities(campaignId: string): Promise<EntitySummary[]>
     g.hasCard = true;
   }
   for (const n of notes.data ?? []) group(n.kind as TagKind, n.slug, n.name).notes += 1;
+  for (const r of relations.data ?? []) {
+    group(r.from_kind as TagKind, r.from_slug, r.from_name);
+    group(r.to_kind as TagKind, r.to_slug, r.to_name);
+  }
 
   return [...groups.values()]
     .map(({ owners, ...g }) => ({ ...g, authors: owners.size }))
@@ -90,7 +96,9 @@ type NoteRow = {
 export async function getEntity(campaignId: string, kind: TagKind, slug: string): Promise<EntityDetail | null> {
   await getCurrentUser();
   const supabase = await createClient();
-  const [entities, card, notes] = await Promise.all([
+  // Lo slug finisce in un filtro "or" di PostgREST: deve contenere solo lettere, numeri e trattini.
+  if (!/^[a-z0-9-]+$/.test(slug)) return null;
+  const [entities, card, notes, relationRows, imageRow] = await Promise.all([
     supabase
       .from("entities")
       .select(`name, entry_mentions(entry:entries(${ENTRY_COLUMNS}))`)
@@ -99,7 +107,7 @@ export async function getEntity(campaignId: string, kind: TagKind, slug: string)
       .eq("slug", slug),
     supabase
       .from("entity_cards")
-      .select("name, description, image_path")
+      .select("name, description")
       .eq("campaign_id", campaignId)
       .eq("kind", kind)
       .eq("slug", slug)
@@ -112,10 +120,25 @@ export async function getEntity(campaignId: string, kind: TagKind, slug: string)
       .eq("slug", slug)
       .order("note_date")
       .order("created_at"),
+    supabase
+      .from("entity_relations")
+      .select("id, owner_id, from_kind, from_slug, from_name, label, to_kind, to_slug, to_name, is_public, owner:profiles(display_name)")
+      .eq("campaign_id", campaignId)
+      .or(`and(from_kind.eq.${kind},from_slug.eq.${slug}),and(to_kind.eq.${kind},to_slug.eq.${slug})`)
+      .order("created_at"),
+    supabase
+      .from("entity_images")
+      .select("image_path, uploaded_by, uploader:profiles(display_name)")
+      .eq("campaign_id", campaignId)
+      .eq("kind", kind)
+      .eq("slug", slug)
+      .maybeSingle(),
   ]);
+  if (imageRow.error) throw dbError(imageRow.error);
   if (entities.error) throw dbError(entities.error);
   if (card.error) throw dbError(card.error);
   if (notes.error) throw dbError(notes.error);
+  if (relationRows.error) throw dbError(relationRows.error);
 
   const rows = (entities.data ?? []) as unknown as { name: string; entry_mentions: { entry: EntryRow | null }[] }[];
   const byId = new Map<string, EntryRow>();
@@ -125,20 +148,50 @@ export async function getEntity(campaignId: string, kind: TagKind, slug: string)
     .sort((a, b) => a.sessionNumber - b.sessionNumber || a.createdAt.localeCompare(b.createdAt));
 
   const noteRows = (notes.data ?? []) as unknown as NoteRow[];
-  if (entries.length === 0 && !card.data && noteRows.length === 0) return null;
+  type RelationRow = {
+    id: string;
+    owner_id: string;
+    from_kind: TagKind;
+    from_slug: string;
+    from_name: string;
+    label: string;
+    to_kind: TagKind;
+    to_slug: string;
+    to_name: string;
+    is_public: boolean;
+    owner: { display_name: string } | null;
+  };
+  const relRows = (relationRows.data ?? []) as unknown as RelationRow[];
+  const relations: EntityRelation[] = relRows.map((r) => {
+    const out = r.from_kind === kind && r.from_slug === slug;
+    return {
+      id: r.id,
+      ownerId: r.owner_id,
+      ownerName: r.owner?.display_name ?? "—",
+      label: r.label,
+      direction: out ? "out" : "in",
+      other: out ? { kind: r.to_kind, slug: r.to_slug, name: r.to_name } : { kind: r.from_kind, slug: r.from_slug, name: r.from_name },
+      isPublic: r.is_public,
+    };
+  });
 
-  let entityCard: EntityCard | null = null;
-  if (card.data) {
-    const urls = await signedUrls("compendio", [card.data.image_path]);
-    entityCard = {
-      name: card.data.name,
-      description: card.data.description,
-      imagePath: card.data.image_path,
-      imageUrl: card.data.image_path ? (urls.get(card.data.image_path) ?? null) : null,
+  if (entries.length === 0 && !card.data && noteRows.length === 0 && relRows.length === 0 && !imageRow.data) return null;
+
+  const entityCard: EntityCard | null = card.data ? { name: card.data.name, description: card.data.description } : null;
+  let image: EntityImage | null = null;
+  if (imageRow.data) {
+    const urls = await signedUrls("compendio", [imageRow.data.image_path]);
+    image = {
+      path: imageRow.data.image_path,
+      url: urls.get(imageRow.data.image_path) ?? null,
+      uploadedBy: imageRow.data.uploaded_by,
+      uploaderName: (imageRow.data.uploader as unknown as { display_name: string } | null)?.display_name ?? "—",
     };
   }
 
-  const name = entityCard?.name ?? rows.find((r) => r.entry_mentions.some((m) => m.entry))?.name ?? rows[0]?.name ?? noteRows[0].name;
+  const fromRelation = relRows.map((r) => (r.from_kind === kind && r.from_slug === slug ? r.from_name : r.to_name))[0];
+  const name =
+    entityCard?.name ?? rows.find((r) => r.entry_mentions.some((m) => m.entry))?.name ?? rows[0]?.name ?? noteRows[0]?.name ?? fromRelation;
   const entityNotes: EntityNote[] = noteRows.map((n) => ({
     id: n.id,
     ownerId: n.owner_id,
@@ -150,7 +203,7 @@ export async function getEntity(campaignId: string, kind: TagKind, slug: string)
     updatedAt: n.updated_at,
   }));
 
-  return { kind, slug, name, entries, card: entityCard, notes: entityNotes };
+  return { kind, slug, name, entries, card: entityCard, image, notes: entityNotes, relations };
 }
 
 /** Nomi già usati dall'utente, per i suggerimenti nel composer. */
@@ -185,52 +238,55 @@ export async function saveCard(campaignId: string, kind: TagKind, name: string, 
   return finalSlug;
 }
 
+// --- Immagine (chiunque nella campagna) ---------------------------------------
+
 async function currentImage(campaignId: string, kind: TagKind, slug: string) {
   const supabase = await createClient();
   const { data } = await supabase
-    .from("entity_cards")
+    .from("entity_images")
     .select("image_path")
     .eq("campaign_id", campaignId)
     .eq("kind", kind)
     .eq("slug", slug)
     .maybeSingle();
-  return { exists: Boolean(data), path: data?.image_path ?? null };
+  return data?.image_path ?? null;
 }
 
-export async function setCardImage(campaignId: string, kind: TagKind, slug: string, name: string, file: unknown) {
-  await getCurrentUser();
+/** Carica o sostituisce l'immagine di un PNG o luogo. Chi la carica ne diventa l'autore. */
+export async function setEntityImage(campaignId: string, kind: TagKind, slug: string, name: string, file: unknown) {
+  const user = await getCurrentUser();
   const { file: image, ext } = checkImage(file);
   const before = await currentImage(campaignId, kind, slug);
-  if (!before.exists) await saveCard(campaignId, kind, name, "", slug);
 
   const path = `${campaignId}/${kind}/${slug}-${randomName(ext)}`;
   await uploadImage("compendio", path, image);
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("entity_cards")
-    .update({ image_path: path, updated_at: new Date().toISOString() })
-    .eq("campaign_id", campaignId)
-    .eq("kind", kind)
-    .eq("slug", slug);
+  const { error } = await supabase.from("entity_images").upsert(
+    { campaign_id: campaignId, kind, slug, name, image_path: path, uploaded_by: user.id, updated_at: new Date().toISOString() },
+    { onConflict: "campaign_id,kind,slug" },
+  );
   if (error) {
     await removeImage("compendio", path);
     throw dbError(error);
   }
-  await removeImage("compendio", before.path);
+  await removeImage("compendio", before);
 }
 
-export async function removeCardImage(campaignId: string, kind: TagKind, slug: string) {
+/** Toglie l'immagine: può farlo chi l'ha caricata oppure il Master (lo decide il database). */
+export async function removeEntityImage(campaignId: string, kind: TagKind, slug: string) {
   await getCurrentUser();
   const before = await currentImage(campaignId, kind, slug);
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("entity_cards")
-    .update({ image_path: null })
+  const { data, error } = await supabase
+    .from("entity_images")
+    .delete()
     .eq("campaign_id", campaignId)
     .eq("kind", kind)
-    .eq("slug", slug);
+    .eq("slug", slug)
+    .select("image_path");
   if (error) throw dbError(error);
-  await removeImage("compendio", before.path);
+  if (!data || data.length === 0) throw new Error("Può togliere l'immagine solo chi l'ha caricata o il Master.");
+  await removeImage("compendio", before);
 }
 
 // --- Note dei giocatori (e del Master) --------------------------------------
@@ -259,5 +315,49 @@ export async function deleteNote(noteId: string) {
   const user = await getCurrentUser();
   const supabase = await createClient();
   const { error } = await supabase.from("entity_notes").delete().eq("id", noteId).eq("owner_id", user.id);
+  if (error) throw dbError(error);
+}
+
+/** Tutti i nomi che l'utente può vedere (suoi, pubblici, schede del Master), per i suggerimenti mentre scrive. */
+export async function listTagNames(campaignId: string): Promise<{ kind: TagKind; name: string }[]> {
+  const entities = await listEntities(campaignId);
+  return entities.map((e) => ({ kind: e.kind, name: e.name }));
+}
+
+// --- Relazioni ("Velia → sorella di → Mastro Odo") ---------------------------
+
+export type RelationInput = {
+  from: { kind: TagKind; slug: string; name: string };
+  label: string;
+  to: { kind: TagKind; name: string };
+  isPublic: boolean;
+};
+
+export async function addRelation(campaignId: string, input: RelationInput) {
+  const user = await getCurrentUser();
+  const toSlug = slugify(input.to.name);
+  if (!toSlug) throw new Error("Con chi o cosa è la relazione?");
+  if (toSlug === input.from.slug && input.to.kind === input.from.kind) throw new Error("Una relazione deve collegare due voci diverse.");
+  const supabase = await createClient();
+  const { error } = await supabase.from("entity_relations").insert({
+    campaign_id: campaignId,
+    owner_id: user.id,
+    from_kind: input.from.kind,
+    from_slug: input.from.slug,
+    from_name: input.from.name,
+    label: input.label,
+    to_kind: input.to.kind,
+    to_slug: toSlug,
+    to_name: input.to.name,
+    is_public: input.isPublic,
+  });
+  if (error) throw dbError(error);
+  return toSlug;
+}
+
+export async function deleteRelation(relationId: string) {
+  const user = await getCurrentUser();
+  const supabase = await createClient();
+  const { error } = await supabase.from("entity_relations").delete().eq("id", relationId).eq("owner_id", user.id);
   if (error) throw dbError(error);
 }

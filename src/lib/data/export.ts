@@ -8,6 +8,7 @@ import { getCampaign } from "./campaigns";
 import { getMyCharacter, listCharacters } from "./characters";
 import { listEntries } from "./diary";
 import { listEntities } from "./compendium";
+import { listQuotes } from "./quotes";
 import { listThreads } from "./threads";
 import type { Character } from "./types";
 
@@ -18,7 +19,7 @@ export async function exportCampaignMarkdown(campaignId: string): Promise<{ file
   const isGm = campaign.role === "gm";
   const supabase = await createClient();
 
-  const [entries, threads, entities, characters, cards, notes] = await Promise.all([
+  const [entries, threads, entities, characters, cards, notes, quotes, relations] = await Promise.all([
     listEntries(campaignId),
     listThreads(campaignId),
     listEntities(campaignId),
@@ -29,7 +30,14 @@ export async function exportCampaignMarkdown(campaignId: string): Promise<{ file
       .select("kind, slug, body, is_public, note_date, owner:profiles(display_name)")
       .eq("campaign_id", campaignId)
       .order("note_date"),
+    listQuotes(campaignId),
+    supabase
+      .from("entity_relations")
+      .select("from_kind, from_slug, from_name, label, to_name, is_public")
+      .eq("campaign_id", campaignId)
+      .order("created_at"),
   ]);
+  if (relations.error) throw dbError(relations.error);
   if (cards.error) throw dbError(cards.error);
   if (notes.error) throw dbError(notes.error);
 
@@ -59,6 +67,14 @@ export async function exportCampaignMarkdown(campaignId: string): Promise<{ file
     }
   }
 
+  // Frasi memorabili ---------------------------------------------------------
+  if (quotes.length > 0) {
+    out.push("## Frasi memorabili", "");
+    for (const q of [...quotes].reverse()) {
+      out.push(`> «${q.text.trim()}»`, `> — **${q.speaker}**${q.sessionNumber ? `, sessione ${q.sessionNumber}` : ""}${q.context ? ` _(${q.context})_` : ""}`, "");
+    }
+  }
+
   // Fili e obiettivi ---------------------------------------------------------
   out.push("## Fili in sospeso e obiettivi", "");
   if (threads.length === 0) out.push("_Nessuno._", "");
@@ -83,6 +99,8 @@ export async function exportCampaignMarkdown(campaignId: string): Promise<{ file
     out.push(`### ${e.name}`, "", `_${e.kind === "npc" ? "Personaggio" : "Luogo o fazione"}_` + (e.firstSession ? ` · prima apparizione S${e.firstSession}` : ""), "");
     const description = descriptions.get(k);
     if (description) out.push(description.trim(), "");
+    const rels = (relations.data ?? []).filter((r) => `${r.from_kind}:${r.from_slug}` === k);
+    if (rels.length) out.push(...rels.map((r) => `- ${r.from_name} → ${r.label} → ${r.to_name}${r.is_public ? "" : " _(privata)_"}`), "");
     for (const n of (notes.data ?? []).filter((x) => `${x.kind}:${x.slug}` === k)) {
       const owner = (n.owner as unknown as { display_name: string } | null)?.display_name ?? "—";
       out.push(`> **${owner}**, ${formatDay(n.note_date, "long")} (${n.is_public ? "pubblica" : "privata"}): ${n.body.trim().replace(/\n/g, "\n> ")}`, "");

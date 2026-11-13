@@ -3,12 +3,17 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { getCurrentUser } from "@/lib/data/auth";
 import { getCampaign } from "@/lib/data/campaigns";
-import { getEntity } from "@/lib/data/compendium";
+import { getEntity, listTagNames } from "@/lib/data/compendium";
 import { listCharacters } from "@/lib/data/characters";
 import { CardEditor } from "@/components/card-editor";
+import { ImageUpload } from "@/components/image-upload";
+import { removeEntityImageAction, setEntityImageAction } from "@/app/actions";
 import { formatDay } from "@/lib/dates";
 import { EntryBody } from "@/components/entry-body";
 import { NoteForm, NoteItem } from "@/components/entity-notes";
+import { RelationForm, RelationList } from "@/components/relations";
+import { AskAbout } from "@/components/ai";
+import { aiAvailable } from "@/lib/ai";
 import type { TagKind } from "@/lib/tags";
 
 export default function EntityPage({ params }: PageProps<"/c/[id]/compendio/[kind]/[slug]">) {
@@ -24,11 +29,12 @@ async function Entity({ params }: { params: Promise<{ id: string; kind: string; 
   if (rawKind !== "npc" && rawKind !== "place") notFound();
   const kind = rawKind as TagKind;
 
-  const [user, campaign, entity, characters] = await Promise.all([
+  const [user, campaign, entity, characters, names] = await Promise.all([
     getCurrentUser(),
     getCampaign(id),
     getEntity(id, kind, slug),
     listCharacters(id),
+    listTagNames(id),
   ]);
   if (!entity) notFound();
 
@@ -59,19 +65,37 @@ async function Entity({ params }: { params: Promise<{ id: string; kind: string; 
             )}
           </div>
 
-          {entity.card && (entity.card.imageUrl || entity.card.description) && (
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-              {entity.card.imageUrl && (
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+            <div className="flex shrink-0 flex-col gap-2 sm:w-56">
+              {entity.image?.url ? (
                 // eslint-disable-next-line @next/next/no-img-element -- link firmato e temporaneo di Supabase Storage
-                <img
-                  src={entity.card.imageUrl}
-                  alt={entity.name}
-                  className="w-full rounded-xl border border-line object-cover sm:w-56"
-                />
+                <img src={entity.image.url} alt={entity.name} className="w-full rounded-xl border border-line object-cover" />
+              ) : (
+                <div className="grid aspect-square w-full place-items-center rounded-xl border border-dashed border-line font-display text-5xl text-muted">
+                  {entity.name.slice(0, 1)}
+                </div>
               )}
-              {entity.card.description && <p className="whitespace-pre-wrap text-lg leading-relaxed">{entity.card.description}</p>}
+              <ImageUpload
+                upload={setEntityImageAction.bind(null, id, kind, slug, entity.name)}
+                remove={
+                  entity.image && (entity.image.uploadedBy === user.id || isGm)
+                    ? removeEntityImageAction.bind(null, id, kind, slug)
+                    : undefined
+                }
+                hasImage={Boolean(entity.image)}
+              />
+              {entity.image && (
+                <p className="text-xs text-muted">Immagine caricata da {entity.image.uploadedBy === user.id ? "te" : entity.image.uploaderName}</p>
+              )}
             </div>
-          )}
+            {entity.card?.description ? (
+              <div className="text-lg leading-relaxed">
+                <EntryBody body={entity.card.description} campaignId={id} markers={false} />
+              </div>
+            ) : (
+              <p className="text-sm italic text-muted">{isGm ? "Scrivi qui sotto la descrizione pubblica." : "Il Master non ha ancora scritto una descrizione."}</p>
+            )}
+          </div>
 
           {isGm && <CardEditor campaignId={id} kind={kind} slug={slug} name={entity.name} card={entity.card} />}
         </article>
@@ -105,6 +129,19 @@ async function Entity({ params }: { params: Promise<{ id: string; kind: string; 
         </section>
 
         <section className="panel flex flex-col gap-3">
+          <h3 className="font-display text-xl font-bold">Relazioni</h3>
+          <p className="text-sm text-muted">Chi è legato a chi: parentele, alleanze, debiti, luoghi. Ogni relazione è privata o pubblica.</p>
+          <RelationList
+            campaignId={id}
+            self={{ kind, slug, name: entity.name }}
+            relations={entity.relations}
+            currentUserId={user.id}
+            showAuthor={isGm}
+          />
+          <RelationForm campaignId={id} self={{ kind, slug, name: entity.name }} names={names} />
+        </section>
+
+        <section className="panel flex flex-col gap-3">
           <h3 className="font-display text-xl font-bold">Nel diario</h3>
           {entity.entries.length === 0 ? (
             <p className="text-sm italic text-muted">Nessuna voce che puoi leggere lo cita ancora.</p>
@@ -126,7 +163,9 @@ async function Entity({ params }: { params: Promise<{ id: string; kind: string; 
         </section>
       </div>
 
-      <aside className="panel lg:sticky lg:top-4">
+      <div className="flex flex-col gap-5 lg:sticky lg:top-4">
+      {aiAvailable() && <AskAbout campaignId={id} kind={kind} slug={slug} name={entity.name} />}
+      <aside className="panel">
         <h3 className="label">{isGm ? "Legami dei PG" : "Il tuo legame"}</h3>
         {bonds.length === 0 ? (
           <p className="mt-2 text-sm italic text-muted">Nessun legame con {entity.name}.</p>
@@ -141,6 +180,7 @@ async function Entity({ params }: { params: Promise<{ id: string; kind: string; 
           </ul>
         )}
       </aside>
+      </div>
     </div>
   );
 }

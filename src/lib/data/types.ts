@@ -37,7 +37,10 @@ export type EntitySummary = {
   notes: number;
 };
 
-export type EntityCard = { name: string; description: string; imagePath: string | null; imageUrl: string | null };
+export type EntityCard = { name: string; description: string };
+
+/** L'immagine di un PNG o luogo: la carica chiunque nella campagna. */
+export type EntityImage = { path: string; url: string | null; uploadedBy: string; uploaderName: string };
 
 export type EntityNote = {
   id: string;
@@ -51,13 +54,26 @@ export type EntityNote = {
   updatedAt: string;
 };
 
+export type EntityRelation = {
+  id: string;
+  ownerId: string;
+  ownerName: string;
+  label: string;
+  /** "out": questa entità → etichetta → altra. "in": altra → etichetta → questa entità. */
+  direction: "out" | "in";
+  other: { kind: TagKind; slug: string; name: string };
+  isPublic: boolean;
+};
+
 export type EntityDetail = {
   kind: TagKind;
   slug: string;
   name: string;
   entries: Entry[];
   card: EntityCard | null;
+  image: EntityImage | null;
   notes: EntityNote[];
+  relations: EntityRelation[];
 };
 
 export type ThreadKind = "question" | "goal";

@@ -8,6 +8,7 @@ import { formatDay } from "@/lib/dates";
 import { DateField } from "./date-field";
 import { EntryBody } from "./entry-body";
 import { SubmitButton } from "./submit-button";
+import { TagTextarea } from "./tag-textarea";
 
 export function EntryCard({
   entry,
@@ -74,7 +75,15 @@ function EditEntry({ campaignId, entry, onDone }: { campaignId: string; entry: E
 
   return (
     <form action={action} className="flex flex-col gap-3">
-      <textarea name="body" required rows={6} defaultValue={entry.body} className="field min-h-36 resize-y leading-relaxed" autoFocus />
+      <TagTextarea
+        campaignId={campaignId}
+        name="body"
+        required
+        rows={6}
+        defaultValue={entry.body}
+        className="field min-h-36 resize-y leading-relaxed"
+        autoFocus
+      />
       <div className="flex flex-wrap items-center gap-3">
         <label className="flex items-center gap-2 text-sm text-muted">
           Sessione

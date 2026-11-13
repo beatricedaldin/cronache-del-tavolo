@@ -3,17 +3,21 @@
 import { useActionState, useRef } from "react";
 import { createEntryAction, type FormState } from "@/app/actions";
 import { tagSyntax, type TagKind } from "@/lib/tags";
+import { AiWritingTools } from "./ai-writing";
 import { DateField } from "./date-field";
+import { TagTextarea } from "./tag-textarea";
 import { SubmitButton } from "./submit-button";
 
 export function Composer({
   campaignId,
   defaultSession,
   suggestions,
+  aiEnabled = false,
 }: {
   campaignId: string;
   defaultSession: number;
   suggestions: { kind: TagKind; name: string }[];
+  aiEnabled?: boolean;
 }) {
   const [state, action] = useActionState<FormState, FormData>(createEntryAction.bind(null, campaignId), {});
   const textRef = useRef<HTMLTextAreaElement>(null);
@@ -50,8 +54,10 @@ export function Composer({
         </div>
       </div>
 
-      <textarea
-        ref={textRef}
+      <TagTextarea
+        campaignId={campaignId}
+        inputRef={textRef}
+        initialNames={suggestions}
         key={`b${state.at ?? 0}`}
         defaultValue={state.values?.body ?? ""}
         name="body"
@@ -60,6 +66,8 @@ export function Composer({
         className="field min-h-36 resize-y leading-relaxed"
         placeholder={"Cosa è successo stasera? Es.\n@Velia ci ha portati a #[Isola di Brina].\n? Chi ha rubato la bussola?\n! Ritrovare la bussola prima della luna nuova"}
       />
+
+      {aiEnabled && <AiWritingTools campaignId={campaignId} textRef={textRef} />}
 
       {suggestions.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
@@ -80,7 +88,9 @@ export function Composer({
       <p className="text-sm text-muted lg:hidden">
         <code className="font-mono text-xs">@Nome</code> personaggio · <code className="font-mono text-xs">#Luogo</code> luogo ·{" "}
         <code className="font-mono text-xs">@[Due parole]</code> nomi lunghi · riga con <code className="font-mono text-xs">?</code>{" "}
-        filo · riga con <code className="font-mono text-xs">!</code> obiettivo
+        filo · riga con <code className="font-mono text-xs">!</code> obiettivo ·{" "}
+        <code className="font-mono text-xs">**grassetto**</code> · <code className="font-mono text-xs">*corsivo*</code> ·{" "}
+        <code className="font-mono text-xs">- elenco</code> · <code className="font-mono text-xs">&gt; citazione</code>
       </p>
 
       <div className="flex flex-wrap items-center justify-between gap-3">

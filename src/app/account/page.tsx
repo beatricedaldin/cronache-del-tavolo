@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { getCurrentUser } from "@/lib/data/auth";
 import { PasswordForm } from "@/components/password-form";
+import { InstallHint } from "@/components/pwa";
 
 export const metadata: Metadata = { title: "Il tuo account" };
 
@@ -16,6 +17,7 @@ export default function AccountPage() {
         <Who />
       </Suspense>
       <PasswordForm />
+      <InstallHint persistent />
     </main>
   );
 }

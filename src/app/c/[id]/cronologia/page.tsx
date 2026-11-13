@@ -6,7 +6,7 @@ import { getCampaign } from "@/lib/data/campaigns";
 import { getTimeline, type TimelineEntity } from "@/lib/data/timeline";
 import type { Thread } from "@/lib/data/types";
 import { formatDay } from "@/lib/dates";
-import { EntryBody, InlineTags } from "@/components/entry-body";
+import { EntryBody, InlineTags, RichInline } from "@/components/entry-body";
 
 export const metadata: Metadata = { title: "Cronologia" };
 
@@ -49,6 +49,7 @@ async function Timeline({ params }: { params: Promise<{ id: string }> }) {
                   {s.firstAppearances.length > 0 && <span>✦ {s.firstAppearances.length} nuovi incontri</span>}
                   {s.opened.length > 0 && <span>{s.opened.length} aperti</span>}
                   {s.closed.length > 0 && <span>✓ {s.closed.length} chiusi</span>}
+                  {s.quotes.length > 0 && <span>❝ {s.quotes.length} {s.quotes.length === 1 ? "frase" : "frasi"}</span>}
                 </span>
               </summary>
 
@@ -62,6 +63,23 @@ async function Timeline({ params }: { params: Promise<{ id: string }> }) {
                     campaignId={id}
                     entities={s.mentioned.filter((m) => !s.firstAppearances.some((f) => f.kind === m.kind && f.slug === m.slug))}
                   />
+                )}
+                {s.quotes.length > 0 && (
+                  <div>
+                    <h4 className="label mb-1.5">Frasi memorabili</h4>
+                    <ul className="flex flex-col gap-2">
+                      {s.quotes.map((q) => (
+                        <li key={q.id} className="border-l-4 border-gold pl-3">
+                          <span className="font-display text-lg italic">
+                            «<RichInline text={q.text} campaignId={id} />»
+                          </span>{" "}
+                          <span className="text-sm font-bold">
+                            — <RichInline text={q.speaker} campaignId={id} />
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 )}
                 {(s.opened.length > 0 || s.closed.length > 0) && (
                   <div className="grid gap-4 sm:grid-cols-2">

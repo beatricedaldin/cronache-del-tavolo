@@ -4,6 +4,7 @@ import { signOutAction } from "./actions";
 import { getCurrentUser } from "@/lib/data/auth";
 import { listMyCampaigns } from "@/lib/data/campaigns";
 import { CreateCampaignForm, JoinCampaignForm } from "@/components/home-forms";
+import { InstallHint } from "@/components/pwa";
 
 export default function Home() {
   return (
@@ -17,6 +18,8 @@ export default function Home() {
           <Account />
         </Suspense>
       </header>
+
+      <InstallHint />
 
       <Suspense fallback={<p className="text-muted">Carico le tue campagne…</p>}>
         <Campaigns />

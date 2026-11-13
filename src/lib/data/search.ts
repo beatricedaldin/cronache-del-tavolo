@@ -11,6 +11,7 @@ export type SearchResults = {
   entities: { kind: TagKind; slug: string; name: string; description: string | null }[];
   notes: { id: string; kind: TagKind; slug: string; name: string; body: string; ownerName: string; isPublic: boolean }[];
   threads: { id: string; kind: ThreadKind; text: string; openedSession: number; resolvedSession: number | null }[];
+  quotes: { id: string; speaker: string; text: string; sessionNumber: number | null }[];
 };
 
 const LIMIT = 30;
@@ -19,11 +20,11 @@ const LIMIT = 30;
 export async function search(campaignId: string, query: string): Promise<SearchResults> {
   await getCurrentUser();
   const q = query.trim().slice(0, 100);
-  if (q.length < 2) return { entries: [], entities: [], notes: [], threads: [] };
+  if (q.length < 2) return { entries: [], entities: [], notes: [], threads: [], quotes: [] };
 
   const pattern = `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
   const supabase = await createClient();
-  const [entries, entities, cardsByName, cardsByText, notes, threads] = await Promise.all([
+  const [entries, entities, cardsByName, cardsByText, notes, threads, quotesByText, quotesBySpeaker] = await Promise.all([
     supabase
       .from("entries")
       .select(ENTRY_COLUMNS)
@@ -46,8 +47,14 @@ export async function search(campaignId: string, query: string): Promise<SearchR
       .eq("campaign_id", campaignId)
       .ilike("text", pattern)
       .limit(LIMIT),
+    supabase.from("quotes").select("id, speaker, text, session_number").eq("campaign_id", campaignId).ilike("text", pattern).limit(LIMIT),
+    supabase.from("quotes").select("id, speaker, text, session_number").eq("campaign_id", campaignId).ilike("speaker", pattern).limit(LIMIT),
   ]);
-  for (const r of [entries, entities, cardsByName, cardsByText, notes, threads]) if (r.error) throw dbError(r.error);
+  for (const r of [entries, entities, cardsByName, cardsByText, notes, threads, quotesByText, quotesBySpeaker]) if (r.error) throw dbError(r.error);
+  const quotes = new Map<string, SearchResults["quotes"][number]>();
+  for (const x of [...(quotesByText.data ?? []), ...(quotesBySpeaker.data ?? [])]) {
+    quotes.set(x.id, { id: x.id, speaker: x.speaker, text: x.text, sessionNumber: x.session_number });
+  }
 
   // Personaggi e luoghi: uno solo per nome, con la descrizione del Master se c'è.
   const found = new Map<string, SearchResults["entities"][number]>();
@@ -78,5 +85,6 @@ export async function search(campaignId: string, query: string): Promise<SearchR
       openedSession: t.opened_session,
       resolvedSession: t.resolved_session,
     })),
+    quotes: [...quotes.values()],
   };
 }

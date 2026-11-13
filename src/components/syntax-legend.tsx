@@ -7,6 +7,10 @@ export function SyntaxLegend({ className = "" }: { className?: string }) {
     { code: "#[Culto del Sole]", result: <span className="rounded-md bg-place-bg px-1.5 font-bold text-place">⌖ Culto del Sole</span>, text: "luogo di più parole" },
     { code: "? Chi è stato?", result: <span className="rounded-md bg-thread-bg px-1.5 font-bold text-thread">? Chi è stato?</span>, text: "a inizio riga: filo in sospeso" },
     { code: "! Trovare la bussola", result: <span className="rounded-md bg-goal-bg px-1.5 font-bold text-goal">! Trovare la bussola</span>, text: "a inizio riga: obiettivo" },
+    { code: "**importante**", result: <strong>importante</strong>, text: "grassetto" },
+    { code: "*sussurrato*", result: <em>sussurrato</em>, text: "corsivo" },
+    { code: "- voce", result: <span>• voce</span>, text: "a inizio riga: elenco" },
+    { code: "> disse Odo…", result: <span className="border-l-4 border-line pl-2 italic text-muted">disse Odo…</span>, text: "a inizio riga: citazione" },
   ];
   return (
     <section className={`panel flex flex-col gap-2 ${className}`} aria-label="Legenda della sintassi">
@@ -24,6 +28,7 @@ export function SyntaxLegend({ className = "" }: { className?: string }) {
         ))}
       </dl>
       <p className="border-t border-line pt-2 text-xs text-muted">
+        Scrivendo <code className="font-mono">@</code> o <code className="font-mono">#</code> compaiono i nomi già noti: ↑ ↓ e Invio per sceglierli.
         Fili e obiettivi restano privati anche nelle voci pubbliche: li vedete solo tu e il Master.
       </p>
     </section>

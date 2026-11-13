@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { LoginForm } from "@/components/home-forms";
+import { InstallHint } from "@/components/pwa";
 
 export const metadata: Metadata = { title: "Accedi" };
 
@@ -12,6 +13,7 @@ export default function LoginPage() {
         <p className="mt-2 text-muted">Schede, diario e memoria condivisa della vostra campagna.</p>
       </div>
       <LoginForm />
+      <InstallHint />
     </main>
   );
 }

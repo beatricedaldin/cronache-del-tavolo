@@ -1,11 +1,11 @@
 "use client";
 
 import { useActionState } from "react";
-import { removeCardImageAction, saveCardAction, setCardImageAction, type FormState } from "@/app/actions";
+import { saveCardAction, type FormState } from "@/app/actions";
 import type { EntityCard } from "@/lib/data/types";
 import type { TagKind } from "@/lib/tags";
-import { ImageUpload } from "./image-upload";
 import { SubmitButton } from "./submit-button";
+import { TagTextarea } from "./tag-textarea";
 
 /** Solo per il Master: la scheda pubblica di un personaggio o luogo, che vedono tutti. */
 export function CardEditor({
@@ -25,12 +25,7 @@ export function CardEditor({
   return (
     <details className="rounded-xl border border-dashed border-gold p-4" open={!card}>
       <summary className="label cursor-pointer text-gold">👑 {card ? "Modifica la scheda pubblica" : "Scrivi la scheda pubblica"}</summary>
-      <p className="mt-2 text-sm text-muted">La descrizione e l&apos;immagine le vedono tutti i giocatori della campagna.</p>
-      <ImageUpload
-        upload={setCardImageAction.bind(null, campaignId, kind, slug, card?.name ?? name)}
-        remove={removeCardImageAction.bind(null, campaignId, kind, slug)}
-        hasImage={Boolean(card?.imagePath)}
-      />
+      <p className="mt-2 text-sm text-muted">Nome e descrizione li vedono tutti i giocatori della campagna. L&apos;immagine la può caricare chiunque.</p>
       <form action={action} className="mt-3 flex flex-col gap-3">
         <label className="flex flex-col gap-1.5">
           <span className="label">Nome</span>
@@ -38,7 +33,8 @@ export function CardEditor({
         </label>
         <label className="flex flex-col gap-1.5">
           <span className="label">Descrizione</span>
-          <textarea
+          <TagTextarea
+            campaignId={campaignId}
             name="description"
             rows={5}
             maxLength={5000}
