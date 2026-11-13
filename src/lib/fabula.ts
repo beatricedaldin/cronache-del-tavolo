@@ -28,6 +28,7 @@ export const STARTING_DISTRIBUTIONS: Die[][] = [
 ];
 
 export const RULES = {
+  startingLevel: 5,
   maxLevel: 50,
   maxClassLevel: 10,
   /** Punti Inventario di base, prima dei bonus di classe. */
@@ -98,13 +99,47 @@ export type ClassEntry = {
   ip: number;
 };
 
+export const TECHNOLOGY_DISCIPLINES = [
+  { key: "alchimia", label: "Alchimia" },
+  { key: "infusione", label: "Infusione" },
+  { key: "magitech", label: "Magitech" },
+] as const;
+export type TechnologyDiscipline = (typeof TECHNOLOGY_DISCIPLINES)[number]["key"];
+export type TechnologyRank = 0 | 1 | 2 | 3;
+export type TechnologyOptions = Record<TechnologyDiscipline, TechnologyRank>;
+
+export const TECHNOLOGY_TIERS = [
+  { value: 0, label: "Non acquisita" },
+  { value: 1, label: "Base" },
+  { value: 2, label: "Avanzata" },
+  { value: 3, label: "Superiore" },
+] as const;
+
+export const emptyTechnologyOptions = (): TechnologyOptions => ({
+  alchimia: 0,
+  infusione: 0,
+  magitech: 0,
+});
+
+export function technologyOptionsSummary(options?: TechnologyOptions): string {
+  if (!options) return "";
+  return TECHNOLOGY_DISCIPLINES.flatMap(({ key, label }) => {
+    const rank = options[key];
+    if (rank === 0) return [];
+    const tier = TECHNOLOGY_TIERS.find((item) => item.value === rank);
+    return tier ? [`${label}: ${tier.label}`] : [];
+  }).join(" · ");
+}
+
 export type SkillEntry = {
   name: string;
   /** Classe di provenienza, oppure "Eroica". */
   source: string;
   level: number;
+  maxRank: number | null;
   heroic: boolean;
   summary: string;
+  technologyOptions?: TechnologyOptions;
 };
 
 export type SpellEntry = {
@@ -112,15 +147,46 @@ export type SpellEntry = {
   mp: string;
   target: string;
   duration: string;
+  offensive: boolean;
   summary: string;
 };
+
+export type RitualEntry = {
+  name: string;
+  summary: string;
+};
+
+export const EQUIPMENT_ACQUISITIONS = [
+  { key: "starting", label: "Equipaggiamento iniziale" },
+  { key: "purchase", label: "Acquistato" },
+  { key: "found", label: "Trovato" },
+  { key: "reward", label: "Ricompensa" },
+  { key: "gift", label: "Ricevuto" },
+  { key: "unknown", label: "Non specificato" },
+] as const;
+export type EquipmentAcquisition = (typeof EQUIPMENT_ACQUISITIONS)[number]["key"];
+export type EquipmentPaymentSource = "personal";
 
 export type EquipmentEntry = {
   name: string;
   slot: EquipmentSlot;
+  quantity: number;
+  cost: number;
+  acquisition: EquipmentAcquisition;
+  paymentSource: EquipmentPaymentSource | null;
+  sessionNumber: number | null;
+  date: string;
   defense: number;
   magicDefense: number;
   initiative: number;
+  summary: string;
+};
+
+export type CharacterAdvancement = {
+  date: string;
+  sessionNumber: number | null;
+  level: number;
+  classes: string;
   summary: string;
 };
 
@@ -129,7 +195,9 @@ export type Sheet = {
   classes: ClassEntry[];
   skills: SkillEntry[];
   spells: SpellEntry[];
+  rituals: RitualEntry[];
   equipment: EquipmentEntry[];
+  advancements: CharacterAdvancement[];
   /** Valori attuali, aggiornati a fine sessione. null = al massimo. */
   current: { hp: number | null; mp: number | null; ip: number | null };
   /**
@@ -147,7 +215,9 @@ export const emptySheet = (): Sheet => ({
   classes: [],
   skills: [],
   spells: [],
+  rituals: [],
   equipment: [],
+  advancements: [],
   current: { hp: null, mp: null, ip: null },
   defenseBase: null,
   magicDefenseBase: null,
@@ -169,7 +239,33 @@ const int = (v: unknown, min: number, max: number, fallback: number) => {
 };
 const intOrNull = (v: unknown, min: number, max: number) =>
   v === null || v === undefined || v === "" ? null : int(v, min, max, min);
+const technologyRank = (value: unknown): TechnologyRank => {
+  switch (int(value, 0, 3, 0)) {
+    case 1:
+      return 1;
+    case 2:
+      return 2;
+    case 3:
+      return 3;
+    default:
+      return 0;
+  }
+};
+const normalizeTechnologyOptions = (value: unknown): TechnologyOptions => {
+  const options = obj(value);
+  return {
+    alchimia: technologyRank(options.alchimia),
+    infusione: technologyRank(options.infusione),
+    magitech: technologyRank(options.magitech),
+  };
+};
+const isoDate = (v: unknown) => {
+  const value = text(v, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : "";
+};
 const die = (v: unknown): Die => (DICE.includes(Number(v) as Die) ? (Number(v) as Die) : 8);
+const paymentSource = (v: unknown): EquipmentPaymentSource | null =>
+  v === "personal" ? "personal" : null;
 const LIST_LIMIT = 60;
 
 export function normalizeSheet(input: unknown): Sheet {
@@ -194,13 +290,21 @@ export function normalizeSheet(input: unknown): Sheet {
     skills: arr(s.skills)
       .slice(0, LIST_LIMIT * 2)
       .map(obj)
-      .map((x) => ({
-        name: text(x.name, 80),
-        source: text(x.source, 60),
-        level: int(x.level, 1, 10, 1),
-        heroic: x.heroic === true,
-        summary: text(x.summary, 2000),
-      }))
+      .map((x) => {
+        const maxRank = intOrNull(x.maxRank, 1, 10);
+        const name = text(x.name, 80);
+        return {
+          name,
+          source: text(x.source, 60),
+          level: int(x.level, 1, maxRank ?? 10, 1),
+          maxRank,
+          heroic: x.heroic === true,
+          summary: text(x.summary, 2000),
+          technologyOptions: name.trim().toLocaleLowerCase("it") === "tecnologie"
+            ? normalizeTechnologyOptions(x.technologyOptions)
+            : undefined,
+        };
+      })
       .filter((x) => x.name),
     spells: arr(s.spells)
       .slice(0, LIST_LIMIT)
@@ -210,6 +314,15 @@ export function normalizeSheet(input: unknown): Sheet {
         mp: text(x.mp, 20),
         target: text(x.target, 60),
         duration: text(x.duration, 40),
+        offensive: x.offensive === true,
+        summary: text(x.summary, 2000),
+      }))
+      .filter((x) => x.name),
+    rituals: arr(s.rituals)
+      .slice(0, LIST_LIMIT)
+      .map(obj)
+      .map((x) => ({
+        name: text(x.name, 80),
         summary: text(x.summary, 2000),
       }))
       .filter((x) => x.name),
@@ -219,12 +332,31 @@ export function normalizeSheet(input: unknown): Sheet {
       .map((x) => ({
         name: text(x.name, 80),
         slot: (EQUIPMENT_SLOTS.some((e) => e.key === x.slot) ? x.slot : "altro") as EquipmentSlot,
+        quantity: int(x.quantity, 1, 999, 1),
+        cost: int(x.cost, 0, 9_999_999, 0),
+        acquisition: (EQUIPMENT_ACQUISITIONS.some((entry) => entry.key === x.acquisition) ? x.acquisition : "unknown") as EquipmentAcquisition,
+        paymentSource: paymentSource(x.paymentSource),
+        sessionNumber: intOrNull(x.sessionNumber, 1, 999),
+        date: isoDate(x.date),
         defense: int(x.defense, -10, 20, 0),
         magicDefense: int(x.magicDefense, -10, 20, 0),
         initiative: int(x.initiative, -10, 20, 0),
         summary: text(x.summary, 2000),
       }))
       .filter((x) => x.name),
+    advancements: arr(s.advancements)
+      .slice(-200)
+      .map(obj)
+      .map((x) => {
+        return {
+          date: isoDate(x.date),
+          sessionNumber: intOrNull(x.sessionNumber, 1, 999),
+          level: int(x.level, 1, RULES.maxLevel, 1),
+          classes: text(x.classes, 500),
+          summary: text(x.summary, 1500),
+        };
+      })
+      .filter((x) => x.summary),
     current: { hp: intOrNull(c.hp, 0, 999), mp: intOrNull(c.mp, 0, 999), ip: intOrNull(c.ip, 0, 99) },
     defenseBase: intOrNull(s.defenseBase, 0, 30),
     magicDefenseBase: intOrNull(s.magicDefenseBase, 0, 30),
@@ -244,6 +376,31 @@ export const characterLevel = (sheet: Sheet, fallback: number) =>
     : fallback;
 
 export const classesLabel = (sheet: Sheet) => sheet.classes.map((c) => `${c.name} ${c.level}`).join(" · ");
+
+export function isStartingDistribution(attributes: Sheet["attributes"]): boolean {
+  const selected = ATTRIBUTES.map((attribute) => attributes[attribute.key]).sort((a, b) => a - b);
+  return STARTING_DISTRIBUTIONS.some((distribution) => {
+    const allowed = [...distribution].sort((a, b) => a - b);
+    return selected.every((die, index) => die === allowed[index]);
+  });
+}
+
+export function characterCreationErrors(sheet: Sheet): string[] {
+  const errors: string[] = [];
+  const classes = sheet.classes;
+  const names = classes.map((entry) => entry.name.trim().toLocaleLowerCase());
+  const levels = classes.reduce((sum, entry) => sum + entry.level, 0);
+
+  if (classes.length < 2 || classes.length > 3) errors.push("Scegli due o tre Classi.");
+  if (names.some((name) => !name)) errors.push("Inserisci il nome di ogni Classe.");
+  if (new Set(names).size !== names.length) errors.push("Ogni Classe deve essere diversa.");
+  if (levels !== RULES.startingLevel) errors.push(`Distribuisci esattamente ${RULES.startingLevel} livelli tra le Classi.`);
+  if (!isStartingDistribution(sheet.attributes)) errors.push("Le Caratteristiche non corrispondono a una distribuzione iniziale valida.");
+
+  const spent = sheet.equipment.reduce((sum, item) => sum + item.cost, 0);
+  if (spent > RULES.equipmentBudget) errors.push(`L'equipaggiamento costa ${spent} Zenit: il budget iniziale è ${RULES.equipmentBudget}.`);
+  return errors;
+}
 
 export type Derived = {
   level: number;

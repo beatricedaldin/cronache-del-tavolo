@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "icone": "node scripts/genera-icone.mjs",
-    "test:e2e": "bash scripts/e2e.sh"
+    "test:e2e": "bash scripts/e2e.sh",
+    "test:e2e:isolated": "bash scripts/e2e-isolated.sh"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

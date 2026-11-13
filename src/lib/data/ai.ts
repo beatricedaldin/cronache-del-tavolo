@@ -1,5 +1,5 @@
 import "server-only";
-import { AiError, generateText, parseJson } from "@/lib/ai";
+import { AiError, generateText, parseJson, type GenerateInput } from "@/lib/ai";
 import { createClient } from "@/lib/supabase/server";
 import { tagSyntax, type TagKind } from "@/lib/tags";
 import { dbError } from "./errors";
@@ -18,6 +18,39 @@ import type { Entry } from "./types";
  */
 
 const MAX_CONTEXT_CHARS = 40_000;
+
+// --- Limite giornaliero per persona -------------------------------------------------
+
+/** Richieste AI al giorno per persona. Si cambia con AI_DAILY_LIMIT. */
+export const aiDailyLimit = () => {
+  const n = Number.parseInt(process.env.AI_DAILY_LIMIT ?? "", 10);
+  return Number.isFinite(n) && n > 0 ? n : 30;
+};
+
+/**
+ * Chiama l'AI scalando una richiesta dal limite di oggi.
+ * Se l'AI non risponde, la richiesta viene restituita: si paga solo quello che arriva.
+ */
+async function generate(input: GenerateInput) {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("consume_ai_quota", { p_limit: aiDailyLimit() });
+  if (error) throw dbError(error);
+  try {
+    return await generateText(input);
+  } catch (e) {
+    await supabase.rpc("refund_ai_quota");
+    throw e;
+  }
+}
+
+/** Quante richieste AI ha usato oggi l'utente collegato. */
+export async function getAiUsage(): Promise<{ used: number; limit: number }> {
+  const user = await getCurrentUser();
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("ai_today");
+  const { data: row } = await supabase.from("ai_usage").select("used").eq("user_id", user.id).eq("day", data as string).maybeSingle();
+  return { used: row?.used ?? 0, limit: aiDailyLimit() };
+}
 
 const BASE_RULES = `Sei il cronista di una campagna del gioco di ruolo Fabula Ultima (fantasy in stile JRPG).
 Scrivi sempre in italiano, con tono caldo e un pizzico di epica, ma chiaro.
@@ -124,7 +157,7 @@ ${open.map((t) => `${t.kind === "goal" ? "Obiettivo" : "Domanda"}: ${t.text}${is
 === FRASI MEMORABILI DELLA SESSIONE ===
 ${sessionQuotes.map((q) => `«${q.text}» — ${q.speaker}`).join("\n") || "(nessuna)"}${namesBlock(names)}`;
 
-  const { text, model } = await generateText({ system: BASE_RULES, prompt, maxOutputTokens: 2048, temperature: 0.6 });
+  const { text, model } = await generate({ system: BASE_RULES, prompt, maxOutputTokens: 2048, temperature: 0.6 });
 
   const supabase = await createClient();
   const { error } = await supabase
@@ -177,7 +210,7 @@ Massimo 220 parole.
 
 ${material}${namesBlock(names)}`;
 
-  const { text } = await generateText({ system: BASE_RULES, prompt, maxOutputTokens: 1536, temperature: 0.4 });
+  const { text } = await generate({ system: BASE_RULES, prompt, maxOutputTokens: 1536, temperature: 0.4 });
   return text;
 }
 
@@ -211,7 +244,7 @@ Regole importanti:
 === APPUNTI ===
 ${clean.slice(0, 8000)}${namesBlock(names)}`;
 
-  const { text } = await generateText({ system: BASE_RULES.replace(/Non iniziare mai una riga con "\?" o "!"\. /, ""), prompt, maxOutputTokens: 2048, temperature: 0.8 });
+  const { text } = await generate({ system: BASE_RULES.replace(/Non iniziare mai una riga con "\?" o "!"\. /, ""), prompt, maxOutputTokens: 2048, temperature: 0.8 });
   return text;
 }
 
@@ -242,7 +275,7 @@ ${clean.slice(0, 8000)}
 === NOMI NOTI ===
 ${names.slice(0, 150).map((n) => `${n.name} (${n.kind})`).join("\n") || "(nessuno)"}`;
 
-  const { text: raw } = await generateText({ system: BASE_RULES, prompt, maxOutputTokens: 1024, temperature: 0.2, json: true });
+  const { text: raw } = await generate({ system: BASE_RULES, prompt, maxOutputTokens: 1024, temperature: 0.2, json: true });
   const data = parseJson<Partial<TagSuggestions>>(raw);
   const lower = clean.toLocaleLowerCase("it");
   const already = new Set(
@@ -323,7 +356,7 @@ ${thisSession.map((e) => entryBlock(e, user.id)).join("\n\n")}
 === FRASI MEMORABILI ===
 ${quotes.filter((q) => q.sessionNumber === session).map((q) => `«${q.text}» — ${q.speaker}`).join("\n") || "(nessuna)"}${namesBlock(names)}`;
 
-  const { text, model } = await generateText({ system: BASE_RULES, prompt, maxOutputTokens: 3072, temperature: 0.85 });
+  const { text, model } = await generate({ system: BASE_RULES, prompt, maxOutputTokens: 3072, temperature: 0.85 });
   const match = text.match(/^\s*(?:\*\*)?TITOLO:\s*(.+?)(?:\*\*)?\s*$/im);
   const title = (match?.[1] ?? `Sessione ${session}`).replace(/\*\*/g, "").trim().slice(0, 80);
   const content = (match ? text.replace(match[0], "") : text).trim();

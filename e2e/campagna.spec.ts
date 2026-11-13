@@ -132,27 +132,97 @@ test("una campagna dall'inizio: visibilità, compendio, frasi, cassa, AI", async
     await expect(p2.getByText("Non toccate la bussola!")).toBeVisible();
   });
 
-  await test.step("cassa e inventario del gruppo", async () => {
-    await p2.goto(`${campaignUrl}/cassa`);
-    await p2.getByLabel("Zenit").fill("300");
-    await p2.getByLabel("Motivo").fill("Ricompensa del borgomastro");
-    await p2.getByRole("button", { name: "Registra" }).click();
-    await expect(p2.getByText("Ricompensa del borgomastro")).toBeVisible();
-    await p2.getByLabel("Oggetto").fill("Bussola d'ottone");
-    await p2.getByRole("button", { name: "Aggiungi all'inventario" }).click();
-    await expect(p2.getByText("Bussola d'ottone")).toBeVisible();
-
-    await p1.goto(`${campaignUrl}/cassa`);
-    await expect(p1.getByText("300", { exact: true })).toBeVisible();
-    await expect(p1.getByText("Bussola d'ottone")).toBeVisible();
-  });
-
-  await test.step("la scheda resta privata, ma il nome del PG lo vedono tutti", async () => {
+  await test.step("la creazione guidata produce una scheda privata", async () => {
     await p1.goto(`${campaignUrl}/scheda/modifica`);
-    await p1.locator('input[name="name"]').fill("Kael Senzaterra");
-    await p1.locator('input[name="identity"]').fill("Mercenario in cerca di riscatto");
-    await p1.getByRole("button", { name: "Salva scheda" }).click();
-    await expect(p1.getByText("Scheda salvata.")).toBeVisible();
+    await p1.getByLabel("Nome del PG").fill("Kael Senzaterra");
+    await p1.getByLabel("Identità").fill("Mercenario in cerca di riscatto");
+    await p1.getByLabel("Tema").fill("Speranza");
+    await p1.getByLabel("Origine").fill("Le Terre Cineree");
+    await p1.getByRole("button", { name: "Continua" }).click();
+
+    await p1.getByLabel("Classe 1").fill("Furia");
+    await p1.getByLabel("Classe 2").fill("Elementalista");
+    await p1.getByRole("button", { name: "Continua" }).click();
+    await p1.getByRole("button", { name: "Continua" }).click();
+    await p1.getByText("Scegli dal catalogo dei manuali").click();
+    await p1.getByLabel("Cerca").fill("Adrenalina");
+    await expect(p1.getByText("Disponibile · Furia 3/10")).toBeVisible();
+    await p1.getByRole("button", { name: "Aggiungi alla scheda" }).click();
+    await expect(p1.getByLabel("Abilità 1", { exact: true })).toHaveValue("Adrenalina");
+    await expect(p1.getByLabel("Gradi")).toHaveAttribute("max", "5");
+    await expect(p1.getByLabel("Promemoria abilità 1")).toHaveValue(/Aumenta i danni mentre sei in Crisi/);
+    await p1.getByLabel("Cerca").fill("Fulgur");
+    await expect(p1.getByText("Disponibile · Elementalista 2/10")).toBeVisible();
+    await p1.getByRole("button", { name: "Aggiungi alla scheda" }).click();
+    await expect(p1.getByLabel("Costo incantesimo 1")).toHaveValue("10 × B");
+    await expect(p1.getByLabel("Bersaglio incantesimo 1")).toHaveValue("Fino a tre creature");
+    await expect(p1.getByLabel("Promemoria incantesimo 1")).toHaveValue(/danni da fulmine/);
+    await expect(p1.getByLabel("Incantesimo offensivo 1")).toBeChecked();
+    await p1.getByLabel("Cerca").fill("Vortice");
+    await p1.getByRole("button", { name: "Aggiungi alla scheda" }).click();
+    await expect(p1.getByLabel("Durata incantesimo 2")).toHaveValue("Scena");
+    await p1.getByLabel("Cerca").fill("Purificazione");
+    await expect(p1.getByText(/Avvelenato, Confuso, Debole, Furente, Lento o Scosso/)).toBeVisible();
+    await expect(p1.getByText(/può includere te stesso e i nemici/)).toBeVisible();
+    await p1.getByLabel("Cerca").fill("Bimagus");
+    await expect(p1.getByText("Richiede padroneggiare 2 Classi tra: Elementalista, Entropista, Spiritista")).toBeVisible();
+    await expect(p1.getByText("Richiede livello personaggio 30 (ora 5)")).toBeVisible();
+    await p1.getByLabel("Cerca").fill("Soldato Arcano");
+    await expect(p1.getByText("Richiede padroneggiare 1 Classe tra: Elementalista, Maestro d'Armi, Tiratore")).toBeVisible();
+    await expect(p1.getByText("Richiede almeno 2 incantesimi offensivi (ne risultano 1)")).toBeVisible();
+    await p1.getByLabel("Cerca").fill("Miglioria");
+    await expect(p1.getByText("Artefice padroneggiato (livello 10; prerequisito da verificare)")).toBeVisible();
+    await expect(p1.getByText("Requisito da verificare sulla fonte")).toBeVisible();
+    await expect(p1.getByText(/ogni livello di Visionario/)).toBeVisible();
+    await p1.getByLabel("Cerca").fill("Tasche Profonde");
+    await expect(p1.getByText("Richiede padroneggiare 1 Classe tra: Artefice")).toBeVisible();
+    await expect(p1.getByText(/riduci il costo di 1 PI, fino a un minimo di 1/)).toBeVisible();
+    await p1.getByLabel("Cerca").fill("Dosaggio Esperto");
+    await expect(p1.getByText("Richiede padroneggiare 1 Classe tra: Artefice, Gourmet, Mercante, Sapiente")).toBeVisible();
+    await expect(p1.getByText(/fino al 150%/)).toBeVisible();
+    await p1.getByLabel("Cerca").fill("Magicannone Quantico");
+    await expect(p1.getByText(/Artefice padroneggiato \+ Tecnologie/)).toBeVisible();
+    await expect(p1.getByText(/Manca il beneficio avanzato Magitech di Tecnologie/)).toBeVisible();
+    await expect(p1.getByText(/multi \(3\) e ignorare le Resistenze/)).toBeVisible();
+    await p1.getByLabel("Cerca").fill("Nebulizzazione");
+    await expect(p1.getByText(/Artefice padroneggiato \+ Tecnologie/)).toBeVisible();
+    await expect(p1.getByText(/Manca il beneficio avanzato Alchimia di Tecnologie/)).toBeVisible();
+    await expect(p1.getByText(/Perdi tutti i punti a fine scena/)).toBeVisible();
+    await p1.getByRole("button", { name: "+ Aggiungi Abilità" }).click();
+    await p1.getByLabel("Abilità 2", { exact: true }).fill("Tecnologie");
+    await p1.getByLabel("Classe abilità 2", { exact: true }).fill("Artefice");
+    await p1.getByLabel("Gradi").nth(1).fill("2");
+    await p1.getByLabel("Tecnologie Magitech", { exact: true }).selectOption("2");
+    await p1.getByLabel("Cerca").fill("Magicannone Quantico");
+    await expect(p1.getByText(/Manca il beneficio avanzato Magitech di Tecnologie/)).toHaveCount(0);
+    await expect(p1.getByText(/Richiede padroneggiare 1 Classe tra: Artefice/)).toBeVisible();
+    await p1.getByLabel("Cerca").fill("Nebulizzazione");
+    await expect(p1.getByText(/Manca il beneficio avanzato Alchimia di Tecnologie/)).toBeVisible();
+    await p1.getByLabel("Cerca").fill("Stretta della Scimmia");
+    await expect(p1.getByText("Richiede padroneggiare 1 Classe tra: Furia")).toBeVisible();
+    await p1.getByLabel("Mostra solo le opzioni disponibili per questo PG").check();
+    await expect(p1.getByText("Nessuna voce corrisponde ai filtri.")).toBeVisible();
+    await p1.getByLabel("Mostra solo le opzioni disponibili per questo PG").uncheck();
+    await p1.getByRole("button", { name: "+ Aggiungi rituale personale" }).click();
+    await p1.getByLabel("Rituale 1").fill("Velo protettivo");
+    await p1.getByRole("button", { name: "Continua" }).click();
+
+    await p1.getByRole("button", { name: "+ Aggiungi oggetto" }).click();
+    await p1.getByLabel("Oggetto 1").fill("Spada di bronzo");
+    await p1.getByLabel("Costo").fill("501");
+    await p1.getByLabel("Risultato del tiro 2d6").selectOption("7");
+    await p1.getByRole("button", { name: "Crea il personaggio" }).click();
+    await expect(p1.getByRole("alert")).toContainText("budget iniziale è 500");
+    await p1.getByLabel("Costo").fill("200");
+    await p1.getByRole("button", { name: "Crea il personaggio" }).click();
+    await expect(p1.getByRole("heading", { name: "Personaggio creato" })).toBeVisible();
+    await p1.goto(`${campaignUrl}/scheda`);
+    await expect(p1.getByText("Spada di bronzo")).toBeVisible();
+    await expect(p1.getByText("Adrenalina")).toBeVisible();
+    await expect(p1.getByText("Magitech: Avanzata")).toBeVisible();
+    await expect(p1.getByText("LA 1/5")).toBeVisible();
+    await expect(p1.getByText("Velo protettivo")).toBeVisible();
+    await expect(p1.getByText("370", { exact: true })).toBeVisible();
 
     await p2.goto(campaignUrl);
     await expect(p2.getByLabel("Il gruppo").getByText("Kael Senzaterra")).toBeVisible();
@@ -162,6 +232,42 @@ test("una campagna dall'inizio: visibilità, compendio, frasi, cassa, AI", async
     await gm.goto(`${campaignUrl}/scheda`);
     await gm.locator("summary", { hasText: "Kael Senzaterra" }).click();
     await expect(gm.getByText("Mercenario in cerca di riscatto")).toBeVisible();
+  });
+
+  await test.step("inventario e Zenit restano personali", async () => {
+    await p1.goto(`${campaignUrl}/cassa`);
+    const acquisitionForm = p1.locator("section").filter({ has: p1.getByRole("heading", { name: "Nuovo oggetto" }) }).locator("form");
+    await acquisitionForm.locator('[name="name"]').fill("Amuleto trovato");
+    await acquisitionForm.locator('[name="acquisition"]').selectOption("found");
+    await acquisitionForm.getByRole("button", { name: "Registra oggetto" }).click();
+    await expect(acquisitionForm.locator('[name="name"]')).toHaveValue("");
+
+    await acquisitionForm.locator('[name="name"]').fill("Pozione personale");
+    await acquisitionForm.locator('[name="acquisition"]').selectOption("purchase");
+    await acquisitionForm.locator('[name="cost"]').fill("50");
+    await acquisitionForm.getByRole("button", { name: "Registra oggetto" }).click();
+    await expect(acquisitionForm.locator('[name="name"]')).toHaveValue("");
+    await expect(p1.getByText("Zenit personali: 320")).toBeVisible();
+
+    await p1.goto(`${campaignUrl}/scheda`);
+    await expect(p1.getByText("Amuleto trovato")).toBeVisible();
+    await expect(p1.getByText("Pozione personale")).toBeVisible();
+    await expect(p1.getByText("320", { exact: true })).toBeVisible();
+
+    await p2.goto(`${campaignUrl}/cassa`);
+    await expect(p2.getByRole("heading", { name: "Inventario del gruppo" })).toHaveCount(0);
+    await expect(p2.getByText("Pozione personale")).toHaveCount(0);
+  });
+
+  await test.step("i progressi si annotano dopo la sessione", async () => {
+    await p1.goto(`${campaignUrl}/scheda/modifica`);
+    await p1.getByLabel("Sessione (facoltativa)").fill("2");
+    await p1.getByLabel("Registro dei progressi (facoltativo)").fill("Il Master assegna una nuova Abilità; registrata dopo la sessione.");
+    await p1.getByRole("button", { name: "Salva scheda" }).click();
+    await expect(p1.getByText("Scheda salvata.")).toBeVisible();
+    await p1.goto(`${campaignUrl}/scheda`);
+    await p1.getByText(/Registro dei progressi/).click();
+    await expect(p1.getByText("Il Master assegna una nuova Abilità; registrata dopo la sessione.")).toBeVisible();
   });
 
   await test.step("ricerca", async () => {
@@ -189,12 +295,22 @@ test("una campagna dall'inizio: visibilità, compendio, frasi, cassa, AI", async
     await expect(p1.getByText("Testo di prova dell'AI finta.")).toBeVisible();
   });
 
+  await test.step("il contatore AI personale conta le richieste di Bea", async () => {
+    await p1.goto("/account");
+    // Riassunto + tag suggeriti + capitolo = 3 richieste.
+    await expect(p1.getByText(/Ne hai usate\s*3\s*su 30/)).toBeVisible();
+    await p2.goto("/account");
+    await expect(p2.getByText(/Ne hai usate\s*0\s*su 30/)).toBeVisible();
+  });
+
   await test.step("esportazione in Markdown", async () => {
     const res = await p1.request.get(`${campaignUrl}/esporta`);
     expect(res.ok()).toBe(true);
     const md = await res.text();
     expect(md).toContain("# Le Cronache di Prova");
     expect(md).toContain("Segreto corretto");
+    expect(md).toContain("Registro dei progressi");
+    expect(md).toContain("Amuleto trovato");
     const other = await p2.request.get(`${campaignUrl}/esporta`);
     expect(await other.text()).not.toContain("Segreto corretto");
   });

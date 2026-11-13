@@ -1,80 +1,89 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
-import { getCurrentUser } from "@/lib/data/auth";
+import { CharacterEquipmentForm } from "@/components/character-equipment-form";
+import { EQUIPMENT_ACQUISITIONS, EQUIPMENT_SLOTS } from "@/lib/fabula";
+import { getMyCharacter } from "@/lib/data/characters";
 import { getCampaign } from "@/lib/data/campaigns";
 import { latestSessionNumber } from "@/lib/data/diary";
-import { getParty } from "@/lib/data/party";
-import { ItemCard, ItemForm, LedgerForm, LedgerRow } from "@/components/party";
 
-export const metadata: Metadata = { title: "Cassa e inventario" };
+export const metadata: Metadata = { title: "Inventario PG" };
 
-export default function PartyPage({ params }: PageProps<"/c/[id]/cassa">) {
+export default function ResourcesPage({ params }: PageProps<"/c/[id]/cassa">) {
   return (
-    <Suspense fallback={<p className="text-muted">Conto gli Zenit…</p>}>
-      <Party params={params} />
+    <Suspense fallback={<p className="text-muted">Carico le risorse personali…</p>}>
+      <PersonalResources params={params} />
     </Suspense>
   );
 }
 
-async function Party({ params }: { params: Promise<{ id: string }> }) {
+async function PersonalResources({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [user, campaign, party, session] = await Promise.all([getCurrentUser(), getCampaign(id), getParty(id), latestSessionNumber(id)]);
-  const isGm = campaign.role === "gm";
-  const kept = party.items.filter((i) => !i.gone);
-  const gone = party.items.filter((i) => i.gone);
+  const [campaign, session, character] = await Promise.all([
+    getCampaign(id),
+    latestSessionNumber(id),
+    getMyCharacter(id),
+  ]);
 
   return (
     <div className="flex flex-col gap-4">
       <p className="text-sm text-muted">
-        🌍 Cassa e inventario sono del gruppo: li vedete e li aggiornate tutti, con calma a fine serata. Gli Zenit personali restano nella scheda di ciascuno.
+        Zenit ed equipaggiamento appartengono al singolo personaggio. Puoi registrare gli aggiornamenti con calma dopo la sessione.
       </p>
-      <div className="grid items-start gap-6 lg:grid-cols-2">
-        <section className="panel flex flex-col gap-4">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h2 className="font-display text-xl font-bold">Cassa comune</h2>
-            <p className="flex items-baseline gap-2">
-              <span className={`font-display text-4xl font-bold ${party.balance < 0 ? "text-danger" : "text-gold"}`}>
-                {party.balance.toLocaleString("it-IT")}
-              </span>
-              <span className="label">Zenit</span>
+      {character ? (
+        <>
+          <section className="panel flex flex-wrap items-baseline justify-between gap-3">
+            <div>
+              <h2 className="font-display text-xl font-bold">{character.name}</h2>
+              <p className="text-sm text-muted">Zenit personali</p>
+            </div>
+            <p className="font-display text-4xl font-bold text-gold">
+              {character.sheet.zenit.toLocaleString("it-IT")}
+              <span className="ml-2 text-base font-normal">Zenit</span>
             </p>
-          </div>
-          <LedgerForm campaignId={id} defaultSession={session} />
-          {party.ledger.length === 0 ? (
-            <p className="text-sm italic text-muted">Nessun movimento ancora.</p>
-          ) : (
-            <ul>
-              {party.ledger.map((e) => (
-                <LedgerRow key={e.id} campaignId={id} entry={e} canDelete={e.authorId === user.id || isGm} />
-              ))}
-            </ul>
-          )}
-        </section>
-
-        <section className="panel flex flex-col gap-4">
-          <h2 className="font-display text-xl font-bold">Inventario del gruppo · {kept.length}</h2>
-          <ItemForm campaignId={id} />
-          {kept.length === 0 ? (
-            <p className="text-sm italic text-muted">Lo zaino comune è vuoto.</p>
-          ) : (
-            <ul>
-              {kept.map((i) => (
-                <ItemCard key={i.id} campaignId={id} item={i} canDelete={i.addedBy === user.id || isGm} />
-              ))}
-            </ul>
-          )}
-          {gone.length > 0 && (
-            <details className="border-t border-line pt-2">
-              <summary className="label cursor-pointer">Non ci sono più · {gone.length}</summary>
-              <ul>
-                {gone.map((i) => (
-                  <ItemCard key={i.id} campaignId={id} item={i} canDelete={i.addedBy === user.id || isGm} />
+          </section>
+          <section className="panel flex flex-col gap-3">
+            <h2 className="font-display text-xl font-bold">Equipaggiamento · {character.sheet.equipment.length}</h2>
+            {character.sheet.equipment.length === 0 ? (
+              <p className="text-sm italic text-muted">Non hai ancora registrato oggetti.</p>
+            ) : (
+              <ul className="divide-y divide-line">
+                {character.sheet.equipment.map((item, index) => (
+                  <li key={`${item.name}-${index}`} className="py-3 first:pt-0 last:pb-0">
+                    <p className="font-bold">{item.name}{item.quantity > 1 ? ` × ${item.quantity}` : ""}</p>
+                    <p className="text-sm text-muted">
+                      {EQUIPMENT_SLOTS.find((slot) => slot.key === item.slot)?.label ?? item.slot}
+                      {" · "}
+                      {EQUIPMENT_ACQUISITIONS.find((entry) => entry.key === item.acquisition)?.label ?? item.acquisition}
+                      {item.cost > 0 ? ` · ${item.cost.toLocaleString("it-IT")} Zenit` : ""}
+                    </p>
+                    {item.summary && <p className="mt-1 text-sm">{item.summary}</p>}
+                  </li>
                 ))}
               </ul>
-            </details>
-          )}
+            )}
+            <Link href={`/c/${id}/scheda/modifica`} className="btn-ghost self-start">Modifica la scheda</Link>
+          </section>
+          <CharacterEquipmentForm
+            campaignId={id}
+            characterId={character.id}
+            defaultSession={session}
+            personalZenit={character.sheet.zenit}
+          />
+        </>
+      ) : (
+        <section className="panel flex flex-col items-start gap-3">
+          <h2 className="font-display text-xl font-bold">Nessuna scheda personale</h2>
+          <p className="text-sm text-muted">
+            {campaign.role === "gm"
+              ? "Le risorse personali compaiono qui quando crei un tuo personaggio."
+              : "Crea la tua scheda per registrare Zenit ed equipaggiamento personali."}
+          </p>
+          <Link href={`/c/${id}/scheda/modifica`} className="btn-ghost">
+            {campaign.role === "gm" ? "Crea un personaggio" : "Crea la scheda"}
+          </Link>
         </section>
-      </div>
+      )}
     </div>
   );
 }

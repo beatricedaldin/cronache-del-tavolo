@@ -114,7 +114,7 @@ export async function getEntity(campaignId: string, kind: TagKind, slug: string)
       .maybeSingle(),
     supabase
       .from("entity_notes")
-      .select("id, owner_id, body, is_public, note_date, created_at, updated_at, name, owner:profiles(display_name)")
+      .select("id, owner_id, body, is_public, note_date, created_at, updated_at, name, owner:profiles!owner_id(display_name)")
       .eq("campaign_id", campaignId)
       .eq("kind", kind)
       .eq("slug", slug)
@@ -122,13 +122,13 @@ export async function getEntity(campaignId: string, kind: TagKind, slug: string)
       .order("created_at"),
     supabase
       .from("entity_relations")
-      .select("id, owner_id, from_kind, from_slug, from_name, label, to_kind, to_slug, to_name, is_public, owner:profiles(display_name)")
+      .select("id, owner_id, from_kind, from_slug, from_name, label, to_kind, to_slug, to_name, is_public, owner:profiles!owner_id(display_name)")
       .eq("campaign_id", campaignId)
       .or(`and(from_kind.eq.${kind},from_slug.eq.${slug}),and(to_kind.eq.${kind},to_slug.eq.${slug})`)
       .order("created_at"),
     supabase
       .from("entity_images")
-      .select("image_path, uploaded_by, uploader:profiles(display_name)")
+      .select("image_path, uploaded_by, uploader:profiles!uploaded_by(display_name)")
       .eq("campaign_id", campaignId)
       .eq("kind", kind)
       .eq("slug", slug)

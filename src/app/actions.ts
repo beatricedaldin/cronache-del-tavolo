@@ -15,7 +15,9 @@ import { createEntry, deleteEntry, updateEntry } from "@/lib/data/diary";
 import { addThread, deleteThread, setThreadResolved } from "@/lib/data/threads";
 import {
   addBond,
+  acquireCharacterEquipment,
   deleteBond,
+  createMyCharacter,
   removeMyPortrait,
   saveMyCharacter,
   setMyPortrait,
@@ -33,9 +35,15 @@ import {
   updateNote,
 } from "@/lib/data/compendium";
 import { addQuote, deleteQuote, updateQuote, type QuoteInput } from "@/lib/data/quotes";
-import { addItem, addLedgerEntry, deleteItem, deleteLedgerEntry, updateItem, type ItemInput } from "@/lib/data/party";
 import type { TagKind } from "@/lib/tags";
-import { normalizeSheet } from "@/lib/fabula";
+import {
+  EQUIPMENT_SLOTS,
+  normalizeSheet,
+  RULES,
+  type EquipmentAcquisition,
+  type EquipmentSlot,
+} from "@/lib/fabula";
+import { todayISO } from "@/lib/dates";
 
 export type FormState = {
   error?: string;
@@ -274,6 +282,16 @@ export async function deleteNoteAction(campaignId: string, noteId: string) {
 export async function saveCharacterAction(campaignId: string, _: FormState, fd: FormData): Promise<FormState> {
   const name = str(fd, "name");
   if (!name) return { error: "Il personaggio ha bisogno di un nome." };
+  const advancementSummary = str(fd, "advancementSummary");
+  const sessionText = str(fd, "advancementSession");
+  const sessionNumber = sessionText ? Number(sessionText) : null;
+  if (advancementSummary.length > 1500) return { error: "La nota sui progressi non può superare 1500 caratteri." };
+  if (sessionText && (!Number.isInteger(sessionNumber) || (sessionNumber ?? 0) < 1 || (sessionNumber ?? 0) > 999)) {
+    return { error: "Il numero della sessione deve essere compreso tra 1 e 999." };
+  }
+  if (sessionText && !advancementSummary) {
+    return { error: "Descrivi l'avanzamento da registrare per questa sessione." };
+  }
   let sheet: unknown;
   try {
     sheet = JSON.parse(String(fd.get("sheet") ?? "{}"));
@@ -289,12 +307,124 @@ export async function saveCharacterAction(campaignId: string, _: FormState, fd: 
       fabulaPoints: Math.max(0, int(fd, "fabulaPoints", 3)),
       notes: str(fd, "notes"),
       sheet: normalizeSheet(sheet),
-    });
+    }, advancementSummary ? { sessionNumber, summary: advancementSummary } : undefined);
   } catch (e) {
     return { error: errorMessage(e) };
   }
   revalidatePath(`/c/${campaignId}`, "layout");
   return { ok: true, message: "Scheda salvata.", at: Date.now() };
+}
+
+export async function createCharacterAction(campaignId: string, _: FormState, fd: FormData): Promise<FormState> {
+  const name = str(fd, "name");
+  if (!name) return { error: "Il personaggio ha bisogno di un nome." };
+  let sheet: unknown;
+  try {
+    sheet = JSON.parse(String(fd.get("sheet") ?? "{}"));
+  } catch {
+    return { error: "La scheda non è leggibile. Ricarica la pagina e riprova." };
+  }
+  const savingsRoll = Number(str(fd, "savingsRoll"));
+  if (!Number.isInteger(savingsRoll) || savingsRoll < 2 || savingsRoll > 12) {
+    return { error: "Inserisci il risultato del tiro 2d6 per i risparmi iniziali." };
+  }
+  try {
+    await createMyCharacter(campaignId, {
+      name,
+      identity: str(fd, "identity"),
+      theme: str(fd, "theme"),
+      origin: str(fd, "origin"),
+      fabulaPoints: RULES.startingFabulaPoints,
+      notes: str(fd, "notes"),
+      sheet: normalizeSheet(sheet),
+    }, savingsRoll);
+  } catch (e) {
+    return { error: errorMessage(e) };
+  }
+  revalidatePath(`/c/${campaignId}`, "layout");
+  return { ok: true, message: "Personaggio creato. Ora puoi aggiungere i Legami.", at: Date.now() };
+}
+
+export async function acquireCharacterEquipmentAction(
+  campaignId: string,
+  characterId: string,
+  _: FormState,
+  fd: FormData,
+): Promise<FormState> {
+  const name = str(fd, "name");
+  const slot = equipmentSlotFrom(str(fd, "slot"));
+  const acquisition = equipmentAcquisitionFrom(str(fd, "acquisition"));
+  const payment = str(fd, "paymentSource");
+  const quantity = Number(str(fd, "quantity"));
+  const cost = Number(str(fd, "cost"));
+  const sessionText = str(fd, "session");
+  const sessionNumber = sessionText ? Number(sessionText) : null;
+  const dateText = str(fd, "date");
+  const date = dateOf(fd, "date");
+  const acquiredOn = date ?? todayISO();
+  const paymentSource: "personal" | null = payment === "personal" ? "personal" : null;
+  const numericField = (key: string) => {
+    const value = str(fd, key);
+    return value ? Number(value) : 0;
+  };
+  const defense = numericField("defense");
+  const magicDefense = numericField("magicDefense");
+  const initiative = numericField("initiative");
+  const summary = str(fd, "summary");
+
+  if (!name || name.length > 80) return { error: "Inserisci un nome valido per l'oggetto (massimo 80 caratteri)." };
+  if (!slot) return { error: "Scegli un tipo di equipaggiamento valido." };
+  if (!acquisition) return { error: "Scegli come è stato ottenuto l'oggetto." };
+  if (!Number.isInteger(quantity) || quantity < 1 || quantity > 999) return { error: "La quantità deve essere compresa tra 1 e 999." };
+  if (acquisition === "purchase") {
+    if (!Number.isInteger(cost) || cost < 1 || cost > 9_999_999) return { error: "Inserisci un costo valido per l'acquisto." };
+    if (!paymentSource) return { error: "L'acquisto può essere addebitato solo ai tuoi Zenit personali." };
+  }
+  if (dateText && !date) return { error: "La data dell'oggetto non è valida." };
+  if (sessionText && (!Number.isInteger(sessionNumber) || (sessionNumber ?? 0) < 1 || (sessionNumber ?? 0) > 999)) {
+    return { error: "Il numero della sessione deve essere compreso tra 1 e 999." };
+  }
+  if (summary.length > 2000) return { error: "Il promemoria non può superare 2000 caratteri." };
+  if ([defense, magicDefense, initiative].some((value) => !Number.isInteger(value) || value < -10 || value > 20)) {
+    return { error: "I bonus devono essere numeri interi tra -10 e 20." };
+  }
+
+  try {
+    await acquireCharacterEquipment(characterId, {
+      name,
+      slot,
+      quantity,
+      cost: acquisition === "purchase" ? cost : 0,
+      acquisition,
+      paymentSource: acquisition === "purchase" ? paymentSource : null,
+      sessionNumber,
+      acquiredOn,
+      defense,
+      magicDefense,
+      initiative,
+      summary,
+    });
+  } catch (e) {
+    return { error: errorMessage(e) };
+  }
+  revalidatePath(`/c/${campaignId}`, "layout");
+  return { ok: true, message: "Oggetto registrato nella scheda e nei saldi pertinenti.", at: Date.now() };
+}
+
+function equipmentSlotFrom(value: string): EquipmentSlot | null {
+  return EQUIPMENT_SLOTS.find((entry) => entry.key === value)?.key ?? null;
+}
+
+function equipmentAcquisitionFrom(value: string): Exclude<EquipmentAcquisition, "starting" | "unknown"> | null {
+  switch (value) {
+    case "purchase":
+    case "found":
+    case "reward":
+    case "gift":
+      return value;
+    default:
+      return null;
+  }
 }
 
 /** Le emozioni scelte: un campo radio per ciascuna coppia ("pair0", "pair1", "pair2"). */
@@ -431,73 +561,5 @@ export async function addRelationAction(
 
 export async function deleteRelationAction(campaignId: string, relationId: string) {
   await deleteRelation(relationId);
-  revalidatePath(`/c/${campaignId}`, "layout");
-}
-
-// --- Cassa e inventario del gruppo ---------------------------------------------
-
-export async function addLedgerAction(campaignId: string, _: FormState, fd: FormData): Promise<FormState> {
-  const raw = int(fd, "amount", 0);
-  const amount = str(fd, "direction") === "out" ? -Math.abs(raw) : Math.abs(raw);
-  const reason = str(fd, "reason").slice(0, 200);
-  const at = Date.now();
-  const keep = { amount: str(fd, "amount"), reason, direction: str(fd, "direction"), session: str(fd, "session"), date: str(fd, "date") };
-  if (!raw) return { error: "Quanti Zenit?", values: keep, at };
-  if (!reason) return { error: "Scrivi il motivo (es. «ricompensa del borgomastro»).", values: keep, at };
-  const session = int(fd, "session", 0);
-  try {
-    await addLedgerEntry(campaignId, { amount, reason, sessionNumber: session > 0 ? session : null, date: dateOf(fd) });
-  } catch (e) {
-    return { error: errorMessage(e), values: keep, at };
-  }
-  revalidatePath(`/c/${campaignId}`, "layout");
-  return { ok: true, values: { direction: keep.direction, session: keep.session, date: keep.date }, at };
-}
-
-export async function deleteLedgerAction(campaignId: string, id: string) {
-  await deleteLedgerEntry(id);
-  revalidatePath(`/c/${campaignId}`, "layout");
-}
-
-function itemFrom(fd: FormData): ItemInput | string {
-  const name = str(fd, "name").slice(0, 100);
-  if (!name) return "Come si chiama l'oggetto?";
-  return {
-    name,
-    description: str(fd, "description").slice(0, 1000),
-    quantity: Math.max(0, Math.min(9999, int(fd, "quantity", 1))),
-    holder: str(fd, "holder").slice(0, 80),
-    gone: fd.get("gone") === "on",
-    goneNote: str(fd, "goneNote").slice(0, 200),
-  };
-}
-
-export async function addItemAction(campaignId: string, _: FormState, fd: FormData): Promise<FormState> {
-  const input = itemFrom(fd);
-  const at = Date.now();
-  if (typeof input === "string") return { error: input, at };
-  try {
-    await addItem(campaignId, input);
-  } catch (e) {
-    return { error: errorMessage(e), at };
-  }
-  revalidatePath(`/c/${campaignId}`, "layout");
-  return { ok: true, at };
-}
-
-export async function updateItemAction(campaignId: string, id: string, _: FormState, fd: FormData): Promise<FormState> {
-  const input = itemFrom(fd);
-  if (typeof input === "string") return { error: input };
-  try {
-    await updateItem(id, input);
-  } catch (e) {
-    return { error: errorMessage(e) };
-  }
-  revalidatePath(`/c/${campaignId}`, "layout");
-  return { ok: true, at: Date.now() };
-}
-
-export async function deleteItemAction(campaignId: string, id: string) {
-  await deleteItem(id);
   revalidatePath(`/c/${campaignId}`, "layout");
 }

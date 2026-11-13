@@ -37,7 +37,7 @@ export async function search(campaignId: string, query: string): Promise<SearchR
     supabase.from("entity_cards").select("kind, slug, name, description").eq("campaign_id", campaignId).ilike("description", pattern).limit(LIMIT),
     supabase
       .from("entity_notes")
-      .select("id, kind, slug, name, body, is_public, owner:profiles(display_name)")
+      .select("id, kind, slug, name, body, is_public, owner:profiles!owner_id(display_name)")
       .eq("campaign_id", campaignId)
       .ilike("body", pattern)
       .limit(LIMIT),

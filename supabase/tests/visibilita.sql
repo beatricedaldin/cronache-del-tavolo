@@ -24,8 +24,6 @@ declare
   note_pub uuid;
   quote1   uuid;
   rel_pub  uuid;
-  item1    uuid;
-  money1   uuid;
   n        int;
   failed   boolean;
 begin
@@ -38,6 +36,10 @@ begin
 
   -- Il Master crea la campagna ------------------------------------------------
   perform set_config('role', 'authenticated', true);
+  assert not has_table_privilege('authenticated', 'public.party_items', 'select'),
+    '❌ TEST FALLITO: l’API utente espone ancora l’inventario condiviso';
+  assert not has_table_privilege('authenticated', 'public.party_ledger', 'select'),
+    '❌ TEST FALLITO: l’API utente espone ancora la cassa comune';
   perform set_config('request.jwt.claim.sub', gm::text, true);
   perform set_config('request.jwt.claims', json_build_object('sub', gm, 'role', 'authenticated')::text, true);
   camp := public.create_campaign('Campagna di prova');
@@ -60,8 +62,6 @@ begin
   insert into storage.objects (bucket_id, name) values ('ritratti', camp || '/' || p1 || '/ritratto.png');
   insert into public.ai_recaps (campaign_id, user_id, session_number, content) values (camp, p1, 1, 'Riassunto personale di G1');
   insert into public.ai_chapters (campaign_id, user_id, session_number, title, content) values (camp, p1, 1, 'Capitolo', 'Capitolo personale di G1');
-  insert into public.party_items (campaign_id, added_by, name) values (camp, p1, 'Bussola d''ottone') returning id into item1;
-  insert into public.party_ledger (campaign_id, author_id, amount, reason) values (camp, p1, 300, 'Ricompensa del borgomastro') returning id into money1;
   insert into public.quotes (campaign_id, author_id, speaker, text, session_number)
   values (camp, p1, 'Mastro Odo', 'Non toccate la bussola!', 1) returning id into quote1;
   insert into public.entity_relations (campaign_id, owner_id, from_kind, from_slug, from_name, label, to_kind, to_slug, to_name, is_public)
@@ -146,19 +146,6 @@ begin
   assert n = 0, '❌ TEST FALLITO: G2 legge il riassunto AI personale di G1';
   select count(*) into n from public.ai_chapters where campaign_id = camp;
   assert n = 0, '❌ TEST FALLITO: G2 legge il Libro della Campagna personale di G1';
-  select coalesce(sum(amount), 0) into n from public.party_ledger where campaign_id = camp;
-  assert n = 300, '❌ TEST FALLITO: G2 non vede la cassa del gruppo';
-  update public.party_items set holder = 'Giocatore 2', added_by = p2 where id = item1;
-  get diagnostics n = row_count;
-  assert n = 1, '❌ TEST FALLITO: G2 non riesce ad aggiornare l''inventario del gruppo';
-  select count(*) into n from public.party_items where id = item1 and added_by = p1;
-  assert n = 1, '❌ TEST FALLITO: aggiornando un oggetto si può cambiare chi l''ha aggiunto';
-  delete from public.party_items where id = item1;
-  get diagnostics n = row_count;
-  assert n = 0, '❌ TEST FALLITO: G2 riesce a cancellare un oggetto aggiunto da G1';
-  delete from public.party_ledger where id = money1;
-  get diagnostics n = row_count;
-  assert n = 0, '❌ TEST FALLITO: G2 riesce a cancellare un movimento di cassa di G1';
   select count(*) into n from public.entity_relations where campaign_id = camp;
   assert n = 1, format('❌ TEST FALLITO: G2 dovrebbe vedere solo la relazione pubblica di G1, ne vede %s', n);
   update public.quotes set text = 'Manomessa' where id = quote1;
@@ -167,6 +154,27 @@ begin
   delete from public.entity_relations where id = rel_pub;
   get diagnostics n = row_count;
   assert n = 0, '❌ TEST FALLITO: G2 riesce a cancellare una relazione di G1';
+
+  -- Limite AI: è personale e si ferma al limite.
+  n := public.consume_ai_quota(2);
+  assert n = 1, format('❌ TEST FALLITO: dopo 1 richiesta su 2 ne dovrebbe restare 1, ne restano %s', n);
+  n := public.consume_ai_quota(2);
+  failed := false;
+  begin
+    perform public.consume_ai_quota(2);
+  exception when others then failed := true;
+  end;
+  assert failed, '❌ TEST FALLITO: il limite giornaliero di richieste AI non blocca';
+  perform public.refund_ai_quota();
+  n := public.consume_ai_quota(2);
+  assert n = 0, '❌ TEST FALLITO: una richiesta AI restituita non torna disponibile';
+  failed := false;
+  begin
+    insert into public.ai_usage (user_id, day, used) values (p2, public.ai_today(), 0)
+    on conflict (user_id, day) do update set used = 0;
+  exception when others then failed := true;
+  end;
+  assert failed, '❌ TEST FALLITO: si può azzerare a mano il proprio contatore AI';
 
   update public.entity_notes set body = 'Manomessa' where id = note_pub;
   get diagnostics n = row_count;
@@ -200,10 +208,8 @@ begin
   assert n = 0, '❌ TEST FALLITO: un estraneo legge le frasi memorabili';
   select count(*) into n from public.entity_relations where campaign_id = camp;
   assert n = 0, '❌ TEST FALLITO: un estraneo legge le relazioni';
-  select count(*) into n from public.party_items where campaign_id = camp;
-  assert n = 0, '❌ TEST FALLITO: un estraneo vede l''inventario del gruppo';
-  select count(*) into n from public.party_ledger where campaign_id = camp;
-  assert n = 0, '❌ TEST FALLITO: un estraneo vede la cassa del gruppo';
+  select count(*) into n from public.ai_usage where user_id = p2;
+  assert n = 0, '❌ TEST FALLITO: un estraneo vede il contatore AI di un altro';
   select count(*) into n from public.entity_images where campaign_id = camp;
   assert n = 0, '❌ TEST FALLITO: un estraneo vede le immagini dei PNG';
   failed := false;
@@ -238,10 +244,6 @@ begin
   delete from public.quotes where id = quote1;
   get diagnostics n = row_count;
   assert n = 1, '❌ TEST FALLITO: il Master non riesce a togliere una frase memorabile';
-  delete from public.party_ledger where id = money1;
-  get diagnostics n = row_count;
-  assert n = 1, '❌ TEST FALLITO: il Master non riesce a togliere un movimento di cassa';
-
   -- Giocatore 1 modifica la sua voce pubblica e la rende privata ---------------
   perform set_config('request.jwt.claim.sub', p1::text, true);
   perform set_config('request.jwt.claims', json_build_object('sub', p1, 'role', 'authenticated')::text, true);

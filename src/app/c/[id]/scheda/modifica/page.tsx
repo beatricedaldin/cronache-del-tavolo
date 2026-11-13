@@ -5,6 +5,7 @@ import { getCampaign } from "@/lib/data/campaigns";
 import { getMyCharacter } from "@/lib/data/characters";
 import { removePortraitAction, setPortraitAction } from "@/app/actions";
 import { BondEditor } from "@/components/bond-editor";
+import { CharacterCreationWizard } from "@/components/character-creation-wizard";
 import { ImageUpload } from "@/components/image-upload";
 import { SheetEditor } from "@/components/sheet-editor";
 
@@ -26,10 +27,10 @@ async function EditSheet({ params }: { params: Promise<{ id: string }> }) {
 
   const character = await getMyCharacter(id);
   return (
-    <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
-      <SheetEditor campaignId={id} character={character} />
-      <div className="flex flex-col gap-5 lg:sticky lg:top-4">
-        {character && (
+    <div className={character ? "grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_380px]" : ""}>
+      {character ? <SheetEditor campaignId={id} character={character} /> : <CharacterCreationWizard campaignId={id} />}
+      {character && (
+        <div className="flex flex-col gap-5 lg:sticky lg:top-4">
           <section className="panel flex flex-col gap-3">
             <h2 className="font-display text-xl font-bold">Ritratto</h2>
             <div className="flex items-center gap-4">
@@ -50,13 +51,9 @@ async function EditSheet({ params }: { params: Promise<{ id: string }> }) {
             </div>
             <p className="text-xs text-muted">Lo vedono tutti al tavolo, insieme al nome del PG. Il resto della scheda resta tra te e il Master.</p>
           </section>
-        )}
-        {character ? (
           <BondEditor campaignId={id} characterId={character.id} bonds={character.bonds} />
-        ) : (
-          <p className="panel text-sm italic text-muted">Salva prima la scheda, poi aggiungi i Legami.</p>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

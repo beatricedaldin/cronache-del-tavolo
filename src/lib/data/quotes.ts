@@ -25,7 +25,7 @@ type Row = {
   author: { display_name: string } | null;
 };
 
-const COLUMNS = "id, speaker, text, context, session_number, quote_date, author_id, author:profiles(display_name)";
+const COLUMNS = "id, speaker, text, context, session_number, quote_date, author_id, author:profiles!author_id(display_name)";
 
 const toQuote = (r: Row): Quote => ({
   id: r.id,

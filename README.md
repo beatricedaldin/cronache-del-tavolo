@@ -46,8 +46,12 @@ Non serve configurare URL di redirect in Supabase: senza link via email non ci s
 
 Principio: **al tavolo si consulta, a casa si compila.** Niente da aggiornare durante il gioco.
 
-- **Scheda PG** (`/c/[id]/scheda`): sola lettura, caratteri grandi, stampabile. Tratti, caratteristiche, PV/PM/PI, Difesa, Legami con la loro forza, abilità, incantesimi, equipaggiamento, fili aperti e un promemoria delle regole.
-- **Modifica scheda** (`/c/[id]/scheda/modifica`): si compila con calma, anche a fine sessione (PV/PM/PI attuali, Punti Fabula, PE, Zenit).
+- **Scheda PG** (`/c/[id]/scheda`): sola lettura, caratteri grandi, stampabile. Tratti, caratteristiche, PV/PM/PI, Difesa, Legami con la loro forza, abilità, incantesimi, Rituali personali, equipaggiamento, fili aperti e un promemoria delle regole.
+- **Prima creazione** (`/c/[id]/scheda/modifica` senza un PG): procedura guidata per concept, Classi e livelli iniziali, distribuzione delle Caratteristiche, Abilità/incantesimi ed equipaggiamento. Il catalogo permette di cercare e aggiungere le voci indicizzate, mostra gradi massimi, confronta i requisiti con Classi/livelli del PG e precompila i dati degli incantesimi leggibili nell’OCR. Per Tecnologie si possono registrare i livelli acquisiti di Alchimia, Infusione e Magitech; il filtro usa questi dati per verificare i requisiti avanzati di Magicannone Quantico e Nebulizzazione. Il flag “offensivo” è modificabile nella scheda e viene usato per il requisito di Soldato Arcano. Il catalogo include anche alcuni materiali ufficiali di playtest; le voci segnalate, i campi incompleti e i riferimenti vanno verificati sulla fonte indicata. Controlla i 5 livelli iniziali, le distribuzioni ammesse, il budget di 500 Zenit e calcola i risparmi iniziali da 2d6 × 10.
+- **Test E2E**: `pnpm test:e2e:isolated` prepara un progetto Supabase temporaneo con porte e database distinti, esegue i test e lo arresta al termine; `pnpm test:e2e` resta il flusso per il progetto Supabase locale esistente.
+- **Modifica scheda** (`/c/[id]/scheda/modifica` con un PG): editor libero per completare o aggiornare la scheda con calma, anche a fine sessione (PV/PM/PI attuali, Punti Fabula, PE, Zenit).
+- **Registro dei progressi**: dopo aver aggiornato la scheda, annota sessione e cambiamenti; il livello e le Classi risultanti restano consultabili nella scheda e nell'esportazione.
+- **Inventario PG** (`/c/[id]/cassa`): registra acquisti, ritrovamenti, ricompense e regali. Gli acquisti scalano gli Zenit personali; gli oggetti trovati o ricevuti non addebitano nulla.
 
 Le regole (formule di PV/PM/PI, Difesa, limiti di livello e di Legami, status) stanno tutte in [src/lib/fabula.ts](src/lib/fabula.ts). Le regole di fine sessione (PE, salita di livello) non ci sono di proposito: le decide il Master. Gli avvisi della scheda non bloccano il salvataggio, per lasciare spazio alle regole della casa.
 
@@ -79,7 +83,7 @@ Fili e obiettivi restano privati anche se la voce è pubblica. Si possono aggiun
 - **Immagini** (compendio e ritratti) in Supabase Storage, in bucket privati. Vengono ridimensionate nel browser prima del caricamento.
 - **Account**: cambio password dall'app.
 - **Frasi memorabili**: le citazioni dette al tavolo, visibili a tutti (chi le trascrive le modifica, il Master può toglierle). L'ultima compare accanto al diario.
-- **Cassa e inventario del gruppo**: Zenit comuni (registro di entrate e uscite) e oggetti del gruppo con chi li porta. Li vedono e aggiornano tutti; cancellare spetta a chi ha inserito o al Master.
+- **Risorse personali**: ciascun personaggio ha i propri Zenit ed equipaggiamento. Acquisti, ritrovamenti e ricompense si registrano dopo la sessione; solo gli acquisti scalano il saldo personale.
 - **Relazioni** nel compendio ("Velia → sorella di → Mastro Odo"), private o pubbliche come le note, visibili sulla pagina di entrambi.
 
 ## Struttura
@@ -116,6 +120,8 @@ All'AI arriva **solo quello che l'utente può già leggere** (stesse funzioni e 
 2. Aggiungi `GEMINI_API_KEY` in `.env.local` e nelle variabili d'ambiente di Vercel (**senza** `NEXT_PUBLIC_`: resta sul server).
 3. Facoltativo: `GEMINI_MODEL` (default `gemini-3.5-flash-lite`).
 
+**Limite per persona:** ognuno ha 30 richieste AI al giorno (variabile `AI_DAILY_LIMIT`), così nessuno consuma da solo la quota gratuita di tutti. Se l'AI non risponde, la richiesta non viene contata. Il contatore si vede nella pagina Account.
+
 Il codice dell'AI è tutto in [src/lib/ai/](src/lib/ai/): per cambiare servizio basta aggiungere lì un'altra funzione.
 
 ## Test
@@ -123,7 +129,7 @@ Il codice dell'AI è tutto in [src/lib/ai/](src/lib/ai/): per cambiare servizio 
 - **Regole di visibilità (SQL):** [supabase/tests/visibilita.sql](supabase/tests/visibilita.sql), da incollare nell'SQL Editor di Supabase.
 - **Tutto, con un browser vero:** `pnpm test:e2e` (serve Docker). Avvia un Supabase completo in locale, ricrea il database con tutte le migrazioni, esegue il test SQL e poi [e2e/campagna.spec.ts](e2e/campagna.spec.ts): un Master, due giocatori e un estraneo, ciascuno nel suo browser, sia in formato telefono che computer. L'AI usa un servizio finto (`AI_PROVIDER=finto`): niente chiave, niente quota. Il rapporto si apre con `pnpm exec playwright show-report`.
 
-Conviene lanciarlo prima di ogni push. Per spegnere il Supabase locale: `pnpm exec supabase stop`.
+Gli stessi test girano da soli su GitHub a ogni push ([.github/workflows/test.yml](.github/workflows/test.yml)): se qualcosa si rompe, il commit viene segnato con ❌ e arriva un'email. Per spegnere il Supabase locale: `pnpm exec supabase stop`.
 
 ## App sul telefono (PWA)
 

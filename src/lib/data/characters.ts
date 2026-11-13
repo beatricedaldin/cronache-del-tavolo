@@ -3,11 +3,23 @@ import { createClient } from "@/lib/supabase/server";
 import { dbError } from "./errors";
 import { getCurrentUser } from "./auth";
 import { checkImage, randomName, removeImage, signedUrls, uploadImage } from "./storage";
-import { characterLevel, classesLabel, normalizeEmotions, normalizeSheet, RULES, type Sheet } from "@/lib/fabula";
+import { todayISO } from "@/lib/dates";
+import {
+  characterCreationErrors,
+  characterLevel,
+  classesLabel,
+  type EquipmentAcquisition,
+  type EquipmentPaymentSource,
+  type EquipmentSlot,
+  normalizeEmotions,
+  normalizeSheet,
+  RULES,
+  type Sheet,
+} from "@/lib/fabula";
 import type { Character } from "./types";
 
 const COLUMNS =
-  "id, owner_id, name, classes, level, identity, theme, origin, fabula_points, notes, sheet, portrait_path, owner:profiles(display_name), bonds(id, target, emotions, created_at)";
+  "id, owner_id, name, classes, level, identity, theme, origin, fabula_points, notes, sheet, portrait_path, owner:profiles!owner_id(display_name), bonds(id, target, emotions, created_at)";
 
 type Row = {
   id: string;
@@ -87,10 +99,48 @@ export type CharacterInput = {
   sheet: Sheet;
 };
 
-export async function saveMyCharacter(campaignId: string, input: CharacterInput) {
+export type AdvancementInput = { sessionNumber: number | null; summary: string };
+export type CharacterEquipmentAcquisitionInput = {
+  name: string;
+  slot: EquipmentSlot;
+  quantity: number;
+  cost: number;
+  acquisition: Exclude<EquipmentAcquisition, "starting" | "unknown">;
+  paymentSource: EquipmentPaymentSource | null;
+  sessionNumber: number | null;
+  acquiredOn: string;
+  defense: number;
+  magicDefense: number;
+  initiative: number;
+  summary: string;
+};
+
+export async function saveMyCharacter(campaignId: string, input: CharacterInput, advancement?: AdvancementInput) {
   const user = await getCurrentUser();
   const supabase = await createClient();
+  const { data: current, error: currentError } = await supabase
+    .from("characters")
+    .select("sheet")
+    .eq("campaign_id", campaignId)
+    .eq("owner_id", user.id)
+    .maybeSingle();
+  if (currentError) throw dbError(currentError);
+
   const sheet = normalizeSheet(input.sheet);
+  const previous = normalizeSheet(current?.sheet);
+  sheet.advancements = previous.advancements;
+  if (advancement) {
+    sheet.advancements = [
+      ...previous.advancements.slice(-199),
+      {
+        date: todayISO(),
+        sessionNumber: advancement.sessionNumber,
+        level: characterLevel(sheet, RULES.startingLevel),
+        classes: classesLabel(sheet),
+        summary: advancement.summary.trim().slice(0, 1500),
+      },
+    ];
+  }
   const { error } = await supabase.from("characters").upsert(
     {
       campaign_id: campaignId,
@@ -109,6 +159,63 @@ export async function saveMyCharacter(campaignId: string, input: CharacterInput)
     },
     { onConflict: "campaign_id,owner_id" },
   );
+  if (error) throw dbError(error);
+}
+
+export async function acquireCharacterEquipment(characterId: string, input: CharacterEquipmentAcquisitionInput) {
+  await getCurrentUser();
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("record_character_equipment", {
+    p_character_id: characterId,
+    p_name: input.name,
+    p_slot: input.slot,
+    p_quantity: input.quantity,
+    p_cost: input.cost,
+    p_acquisition: input.acquisition,
+    p_payment_source: input.paymentSource,
+    p_session_number: input.sessionNumber,
+    p_acquired_on: input.acquiredOn,
+    p_defense: input.defense,
+    p_magic_defense: input.magicDefense,
+    p_initiative: input.initiative,
+    p_summary: input.summary,
+  });
+  if (error) throw dbError(error);
+}
+
+/** Crea il primo personaggio dopo aver verificato le regole della creazione guidata. */
+export async function createMyCharacter(campaignId: string, input: CharacterInput, savingsRoll: number) {
+  const user = await getCurrentUser();
+  const name = input.name.trim();
+  const identity = input.identity.trim();
+  const theme = input.theme.trim();
+  const origin = input.origin.trim();
+  if (!name || !identity || !theme || !origin) {
+    throw new Error("Completa nome, Identità, Tema e Origine.");
+  }
+  if (!Number.isInteger(savingsRoll) || savingsRoll < 2 || savingsRoll > 12) {
+    throw new Error("Il tiro dei risparmi iniziali deve essere compreso tra 2 e 12.");
+  }
+
+  const sheet = normalizeSheet(input.sheet);
+  const errors = characterCreationErrors(sheet);
+  if (errors.length > 0) throw new Error(errors[0]);
+  sheet.zenit = RULES.equipmentBudget - sheet.equipment.reduce((sum, item) => sum + item.cost, 0) + savingsRoll * 10;
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("characters").insert({
+    campaign_id: campaignId,
+    owner_id: user.id,
+    name,
+    classes: classesLabel(sheet),
+    level: characterLevel(sheet, RULES.startingLevel),
+    identity,
+    theme,
+    origin,
+    fabula_points: input.fabulaPoints,
+    notes: input.notes,
+    sheet,
+  });
   if (error) throw dbError(error);
 }
 

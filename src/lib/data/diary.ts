@@ -18,7 +18,7 @@ export type EntryRow = {
 };
 
 export const ENTRY_COLUMNS =
-  "id, session_number, body, created_at, author_id, is_public, updated_at, entry_date, author:profiles(display_name)";
+  "id, session_number, body, created_at, author_id, is_public, updated_at, entry_date, author:profiles!author_id(display_name)";
 
 export function toEntry(r: EntryRow): Entry {
   return {

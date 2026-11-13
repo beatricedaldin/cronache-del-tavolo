@@ -10,7 +10,7 @@ export async function listThreads(campaignId: string): Promise<Thread[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("threads")
-    .select("id, kind, text, opened_session, resolved_session, owner_id, owner:profiles(display_name)")
+    .select("id, kind, text, opened_session, resolved_session, owner_id, owner:profiles!owner_id(display_name)")
     .eq("campaign_id", campaignId)
     .order("opened_session", { ascending: false })
     .order("created_at", { ascending: false });

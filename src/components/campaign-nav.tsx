@@ -13,7 +13,7 @@ export function CampaignNav({ campaignId, role }: { campaignId: string; role: Ro
     { href: `${base}/compendio`, label: "Compendio" },
     { href: `${base}/fili`, label: "Fili e obiettivi" },
     { href: `${base}/frasi`, label: "Frasi" },
-    { href: `${base}/cassa`, label: "Cassa" },
+    { href: `${base}/cassa`, label: "Inventario PG" },
     { href: `${base}/libro`, label: "📖 Libro" },
     { href: `${base}/scheda`, label: role === "gm" ? "Giocatori" : "Scheda PG" },
     { href: `${base}/cerca`, label: "🔍 Cerca" },

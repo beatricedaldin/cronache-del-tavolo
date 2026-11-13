@@ -3,12 +3,15 @@ import {
   bondStrength,
   derive,
   DIFFICULTIES,
+  EQUIPMENT_ACQUISITIONS,
   EQUIPMENT_SLOTS,
   FABULA_GAINS,
   FABULA_USES,
   STATUSES,
+  technologyOptionsSummary,
 } from "@/lib/fabula";
 import type { Character, Thread } from "@/lib/data/types";
+import { formatDay } from "@/lib/dates";
 
 /**
  * La scheda da consultare al tavolo: sola lettura, caratteri grandi, niente da compilare.
@@ -111,8 +114,13 @@ export function SheetView({ character: c, openThreads = [] }: { character: Chara
                   {skills.map((k, i) => (
                     <li key={i}>
                       <b>{k.name}</b>
-                      {!k.heroic && k.level > 1 && <span className="session ml-2">LA {k.level}</span>}
+                      {!k.heroic && (k.level > 1 || k.maxRank !== null) && (
+                        <span className="session ml-2">LA {k.level}{k.maxRank !== null ? `/${k.maxRank}` : ""}</span>
+                      )}
                       {k.summary && <LongText text={k.summary} className="text-sm text-muted" />}
+                      {technologyOptionsSummary(k.technologyOptions) && (
+                        <p className="text-sm text-muted">{technologyOptionsSummary(k.technologyOptions)}</p>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -131,10 +139,24 @@ export function SheetView({ character: c, openThreads = [] }: { character: Chara
                   <b>{sp.name}</b>
                   {sp.mp && <span className="font-mono text-sm text-accent">{sp.mp} PM</span>}
                 </div>
+                {sp.offensive && <p className="text-xs font-bold text-accent">Incantesimo offensivo</p>}
                 {(sp.target || sp.duration) && (
                   <p className="text-xs text-muted">{[sp.target, sp.duration].filter(Boolean).join(" · ")}</p>
                 )}
                 {sp.summary && <LongText text={sp.summary} className="mt-1 text-sm" />}
+              </li>
+            ))}
+          </ul>
+        </Block>
+      )}
+
+      {s.rituals.length > 0 && (
+        <Block title="Rituali">
+          <ul className="flex flex-col gap-2">
+            {s.rituals.map((ritual, i) => (
+              <li key={i}>
+                <b>{ritual.name}</b>
+                {ritual.summary && <LongText text={ritual.summary} className="text-sm text-muted" />}
               </li>
             ))}
           </ul>
@@ -149,6 +171,15 @@ export function SheetView({ character: c, openThreads = [] }: { character: Chara
                 <span className="flex flex-wrap items-baseline gap-2">
                   <span className="label">{EQUIPMENT_SLOTS.find((x) => x.key === e.slot)?.label}</span>
                   <b>{e.name}</b>
+                  {e.quantity > 1 && <span className="session">×{e.quantity}</span>}
+                  {e.acquisition !== "unknown" && (
+                    <span className="text-xs text-muted">
+                      {EQUIPMENT_ACQUISITIONS.find((source) => source.key === e.acquisition)?.label}
+                      {e.sessionNumber ? ` · S${e.sessionNumber}` : ""}
+                      {e.date ? ` · ${formatDay(e.date)}` : ""}
+                    </span>
+                  )}
+                  {e.cost > 0 && <span className="text-xs text-muted">{e.cost} Zenit</span>}
                 </span>
                 {e.summary && <LongText text={e.summary} className="text-sm text-muted" />}
               </li>
@@ -169,6 +200,26 @@ export function SheetView({ character: c, openThreads = [] }: { character: Chara
         <Block title="Note">
           <p className="whitespace-pre-wrap">{c.notes}</p>
         </Block>
+      )}
+
+      {s.advancements.length > 0 && (
+        <details className="panel group">
+          <summary className="cursor-pointer font-display text-xl font-bold">
+            Registro dei progressi · {s.advancements.length}
+          </summary>
+          <ol className="mt-3 flex flex-col">
+            {[...s.advancements].reverse().map((entry, index) => (
+              <li key={`${entry.date}-${index}`} className="border-t border-dashed border-line py-3 first:border-t-0">
+                <p className="text-sm font-bold">
+                  {entry.sessionNumber ? `Sessione ${entry.sessionNumber} · ` : ""}
+                  {entry.date ? formatDay(entry.date) : "Data non specificata"}
+                  <span className="font-normal text-muted"> · Liv. {entry.level}{entry.classes ? ` · ${entry.classes}` : ""}</span>
+                </p>
+                <p className="mt-1 whitespace-pre-wrap text-sm text-muted">{entry.summary}</p>
+              </li>
+            ))}
+          </ol>
+        </details>
       )}
 
       <RulesReminder />

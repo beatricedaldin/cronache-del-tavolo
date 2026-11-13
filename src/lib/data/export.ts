@@ -1,6 +1,13 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
-import { ATTRIBUTES, bondStrength, derive, EQUIPMENT_SLOTS } from "@/lib/fabula";
+import {
+  ATTRIBUTES,
+  bondStrength,
+  derive,
+  EQUIPMENT_ACQUISITIONS,
+  EQUIPMENT_SLOTS,
+  technologyOptionsSummary,
+} from "@/lib/fabula";
 import { formatDay } from "@/lib/dates";
 import { dbError } from "./errors";
 import { getCurrentUser } from "./auth";
@@ -27,7 +34,7 @@ export async function exportCampaignMarkdown(campaignId: string): Promise<{ file
     supabase.from("entity_cards").select("kind, slug, description").eq("campaign_id", campaignId),
     supabase
       .from("entity_notes")
-      .select("kind, slug, body, is_public, note_date, owner:profiles(display_name)")
+      .select("kind, slug, body, is_public, note_date, owner:profiles!owner_id(display_name)")
       .eq("campaign_id", campaignId)
       .order("note_date"),
     listQuotes(campaignId),
@@ -135,13 +142,31 @@ function characterMarkdown(c: Character, withOwner: boolean): string[] {
     lines.push("**Legami**", "", ...c.bonds.map((b) => `- ${b.target}: ${b.emotions.join(", ")} (forza ${bondStrength(b.emotions)})`), "");
   }
   if (s.skills.length) {
-    lines.push("**Abilità**", "", ...s.skills.map((k) => `- **${k.name}**${k.heroic ? " (Eroica)" : k.source ? ` (${k.source}${k.level > 1 ? `, LA ${k.level}` : ""})` : ""}${k.summary ? `: ${k.summary}` : ""}`), "");
+    lines.push("**Abilità**", "", ...s.skills.map((k) => {
+      const technologies = technologyOptionsSummary(k.technologyOptions);
+      return `- **${k.name}**${k.heroic ? " (Eroica)" : k.source ? ` (${k.source}${k.level > 1 || k.maxRank !== null ? `, LA ${k.level}${k.maxRank !== null ? `/${k.maxRank}` : ""}` : ""})` : ""}${k.summary ? `: ${k.summary}` : ""}${technologies ? ` · Tecnologie: ${technologies}` : ""}`;
+    }), "");
   }
   if (s.spells.length) {
-    lines.push("**Incantesimi**", "", ...s.spells.map((x) => `- **${x.name}**${x.mp ? ` · ${x.mp} PM` : ""}${x.target ? ` · ${x.target}` : ""}${x.duration ? ` · ${x.duration}` : ""}${x.summary ? `: ${x.summary}` : ""}`), "");
+    lines.push("**Incantesimi**", "", ...s.spells.map((x) => `- **${x.name}**${x.offensive ? " (offensivo)" : ""}${x.mp ? ` · ${x.mp} PM` : ""}${x.target ? ` · ${x.target}` : ""}${x.duration ? ` · ${x.duration}` : ""}${x.summary ? `: ${x.summary}` : ""}`), "");
+  }
+  if (s.rituals.length) {
+    lines.push("**Rituali**", "", ...s.rituals.map((x) => `- **${x.name}**${x.summary ? `: ${x.summary}` : ""}`), "");
   }
   if (s.equipment.length) {
-    lines.push("**Equipaggiamento**", "", ...s.equipment.map((e) => `- ${EQUIPMENT_SLOTS.find((x) => x.key === e.slot)?.label}: **${e.name}**${e.summary ? ` — ${e.summary}` : ""}`), "");
+    lines.push("**Equipaggiamento**", "", ...s.equipment.map((e) => {
+      const acquisition = EQUIPMENT_ACQUISITIONS.find((source) => source.key === e.acquisition)?.label;
+      const payment = e.paymentSource === "personal" ? " · Zenit personali" : "";
+      return `- ${EQUIPMENT_SLOTS.find((x) => x.key === e.slot)?.label}: **${e.name}**${e.quantity > 1 ? ` ×${e.quantity}` : ""}${acquisition && e.acquisition !== "unknown" ? ` · ${acquisition}` : ""}${e.sessionNumber ? ` · S${e.sessionNumber}` : ""}${e.date ? ` · ${formatDay(e.date)}` : ""}${e.cost > 0 ? ` · ${e.cost} Zenit${payment}` : ""}${e.summary ? ` — ${e.summary}` : ""}`;
+    }), "");
+  }
+  if (s.advancements.length) {
+    lines.push(
+      "**Registro dei progressi**",
+      "",
+      ...s.advancements.map((entry) => `- ${entry.sessionNumber ? `Sessione ${entry.sessionNumber} · ` : ""}${entry.date ? formatDay(entry.date) : ""} · Liv. ${entry.level}${entry.classes ? ` · ${entry.classes}` : ""}: ${entry.summary}`),
+      "",
+    );
   }
   if (c.notes) lines.push("**Note**", "", c.notes.trim(), "");
   return lines;

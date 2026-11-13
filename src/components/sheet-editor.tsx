@@ -4,17 +4,22 @@ import Link from "next/link";
 import { useActionState, useState } from "react";
 import { saveCharacterAction, type FormState } from "@/app/actions";
 import type { Character } from "@/lib/data/types";
+import type { CatalogEntry } from "@/lib/fabula-catalog";
+import { ManualCatalogPicker } from "./manual-catalog-picker";
+import { TechnologyOptionsEditor } from "./technology-options-editor";
 import {
   ATTRIBUTES,
   DICE,
   derive,
   emptySheet,
+  emptyTechnologyOptions,
   EQUIPMENT_SLOTS,
   RULES,
   sheetWarnings,
   STARTING_DISTRIBUTIONS,
   type ClassEntry,
   type EquipmentEntry,
+  type RitualEntry,
   type Sheet,
   type SkillEntry,
   type SpellEntry,
@@ -41,6 +46,33 @@ export function SheetEditor({ campaignId, character }: { campaignId: string; cha
   const set = <K extends keyof Sheet>(key: K, value: Sheet[K]) => setSheet((s) => ({ ...s, [key]: value }));
   const setBasic = <K extends keyof Basics>(key: K, value: Basics[K]) => setBasics((b) => ({ ...b, [key]: value }));
   const classNames = sheet.classes.map((c) => c.name).filter(Boolean);
+  const addCatalogEntry = (entry: CatalogEntry) => {
+    const reference = [entry.summary, `Requisito: ${entry.requirement}`, `Rif.: ${entry.source}, p. ${entry.page}`]
+      .filter(Boolean)
+      .join(" ");
+    if (entry.kind === "skill" || entry.kind === "heroic") {
+      set("skills", [...sheet.skills, {
+        name: entry.name,
+        source: entry.kind === "heroic" ? "Abilità Eroiche" : entry.className,
+        level: 1,
+        maxRank: entry.kind === "skill" ? entry.maxRank ?? 1 : null,
+        heroic: entry.kind === "heroic",
+        summary: reference,
+        technologyOptions: entry.name.trim().toLocaleLowerCase("it") === "tecnologie"
+          ? emptyTechnologyOptions()
+          : undefined,
+      }]);
+    } else {
+      set("spells", [...sheet.spells, {
+        name: entry.name,
+        mp: entry.mp ?? "",
+        target: entry.target ?? "",
+        duration: entry.duration ?? "",
+        offensive: entry.offensive ?? false,
+        summary: reference,
+      }]);
+    }
+  };
 
   return (
     <form action={action} className="flex flex-col gap-5">
@@ -113,6 +145,10 @@ export function SheetEditor({ campaignId, character }: { campaignId: string; cha
         </p>
       </Section>
 
+      <Section title="Catalogo dei manuali" hint="Cerca per categoria o Classe e aggiungi le voci selezionate alla scheda. L’indice OCR è una bozza: verifica requisiti e riferimenti sul manuale.">
+        <ManualCatalogPicker classes={sheet.classes} skills={sheet.skills} spells={sheet.spells} onSelect={addCatalogEntry} />
+      </Section>
+
       <Section title="Abilità" hint="Bastano nome e una riga che ti ricordi cosa fa: è quello che consulterai al tavolo.">
         <datalist id="skill-sources">
           {classNames.map((n) => (
@@ -122,7 +158,7 @@ export function SheetEditor({ campaignId, character }: { campaignId: string; cha
         <ListEditor<SkillEntry>
           items={sheet.skills}
           onChange={(v) => set("skills", v)}
-          create={() => ({ name: "", source: classNames[0] ?? "", level: 1, heroic: false, summary: "" })}
+          create={() => ({ name: "", source: classNames[0] ?? "", level: 1, maxRank: null, heroic: false, summary: "" })}
           addLabel="Aggiungi abilità"
           render={(k, update) => (
             <div className="flex flex-col gap-2">
@@ -133,13 +169,20 @@ export function SheetEditor({ campaignId, character }: { campaignId: string; cha
                 <Field label="Classe">
                   <input value={k.source} onChange={(e) => update({ source: e.target.value })} list="skill-sources" className="field" />
                 </Field>
-                <Num label="Livello (LA)" value={k.level} min={1} max={10} onChange={(level) => update({ level })} />
+                <Num label="Livello (LA)" value={k.level} min={1} max={k.maxRank ?? 10} onChange={(level) => update({ level })} />
                 <label className="flex items-center gap-2 self-end pb-2 text-sm font-bold">
                   <input type="checkbox" checked={k.heroic} onChange={(e) => update({ heroic: e.target.checked })} className="accent-accent" />
                   Eroica
                 </label>
               </div>
               <Summary value={k.summary} onChange={(summary) => update({ summary })} />
+              {k.name.trim().toLocaleLowerCase("it") === "tecnologie" && (
+                <TechnologyOptionsEditor
+                  value={k.technologyOptions}
+                  skillLevel={k.level}
+                  onChange={(technologyOptions) => update({ technologyOptions })}
+                />
+              )}
             </div>
           )}
         />
@@ -149,7 +192,7 @@ export function SheetEditor({ campaignId, character }: { campaignId: string; cha
         <ListEditor<SpellEntry>
           items={sheet.spells}
           onChange={(v) => set("spells", v)}
-          create={() => ({ name: "", mp: "", target: "", duration: "", summary: "" })}
+          create={() => ({ name: "", mp: "", target: "", duration: "", offensive: false, summary: "" })}
           addLabel="Aggiungi incantesimo"
           render={(sp, update) => (
             <div className="flex flex-col gap-2">
@@ -167,21 +210,42 @@ export function SheetEditor({ campaignId, character }: { campaignId: string; cha
                   <input value={sp.duration} onChange={(e) => update({ duration: e.target.value })} className="field" placeholder="Istantanea" />
                 </Field>
               </div>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={sp.offensive} onChange={(event) => update({ offensive: event.target.checked })} className="accent-accent" />
+                Incantesimo offensivo
+              </label>
               <Summary value={sp.summary} onChange={(summary) => update({ summary })} />
             </div>
           )}
         />
       </Section>
 
-      <Section title="Equipaggiamento" hint="Nei campi numerici metti i bonus che l'oggetto aggiunge a Difesa, Difesa Magica e Iniziativa, anche negativi (es. Abito da viaggio: Dif. +1, D. Mag. +1, Iniz. −1).">
+      <Section title="Rituali" hint="I Rituali si definiscono in base all’obiettivo: non sono un elenco chiuso di opzioni per Classe. Registra qui quelli utili al tuo PG.">
+        <ListEditor<RitualEntry>
+          items={sheet.rituals}
+          onChange={(v) => set("rituals", v)}
+          create={() => ({ name: "", summary: "" })}
+          addLabel="Aggiungi rituale personale"
+          render={(ritual, update) => (
+            <div className="flex flex-col gap-2">
+              <Field label="Nome o scopo del rituale">
+                <input value={ritual.name} onChange={(event) => update({ name: event.target.value })} className="field" placeholder="Es. proteggere il villaggio dalla tempesta" />
+              </Field>
+              <Summary value={ritual.summary} onChange={(summary) => update({ summary })} />
+            </div>
+          )}
+        />
+      </Section>
+
+      <Section title="Equipaggiamento" hint="Nei campi numerici metti i bonus a Difesa, Difesa Magica e Iniziativa. Per registrare un nuovo acquisto, ritrovamento o ricompensa usa Inventario PG: solo gli acquisti scalano gli Zenit personali.">
         <ListEditor<EquipmentEntry>
           items={sheet.equipment}
           onChange={(v) => set("equipment", v)}
-          create={() => ({ name: "", slot: "arma", defense: 0, magicDefense: 0, initiative: 0, summary: "" })}
+          create={() => ({ name: "", slot: "arma", quantity: 1, cost: 0, acquisition: "unknown", paymentSource: null, sessionNumber: null, date: "", defense: 0, magicDefense: 0, initiative: 0, summary: "" })}
           addLabel="Aggiungi oggetto"
           render={(e, update) => (
             <div className="flex flex-col gap-2">
-              <div className="grid grid-cols-3 gap-2 sm:grid-cols-[minmax(0,2fr)_minmax(0,1.2fr)_repeat(3,minmax(0,0.8fr))]">
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-[minmax(0,2fr)_minmax(0,1.2fr)_repeat(5,minmax(0,0.8fr))]">
                 <Field label="Oggetto" className="col-span-3 sm:col-span-1">
                   <input value={e.name} onChange={(ev) => update({ name: ev.target.value })} className="field" />
                 </Field>
@@ -194,9 +258,11 @@ export function SheetEditor({ campaignId, character }: { campaignId: string; cha
                     ))}
                   </select>
                 </Field>
+                <Num label="Quantità" value={e.quantity} min={1} onChange={(quantity) => update({ quantity })} />
                 <Num label="Dif." value={e.defense} min={-10} onChange={(defense) => update({ defense })} />
                 <Num label="D. Mag." value={e.magicDefense} min={-10} onChange={(magicDefense) => update({ magicDefense })} />
                 <Num label="Iniz." value={e.initiative} min={-10} onChange={(initiative) => update({ initiative })} />
+                <Num label="Costo" value={e.cost} min={0} onChange={(cost) => update({ cost })} />
               </div>
               <Summary value={e.summary} onChange={(summary) => update({ summary })} placeholder="Es. Precisione DES + VIG · danno RA + 8 fisico" />
             </div>
@@ -239,6 +305,24 @@ export function SheetEditor({ campaignId, character }: { campaignId: string; cha
         <p className="text-xs text-muted">
           Alla creazione hai {RULES.equipmentBudget} Zenit da spendere in equipaggiamento: quelli che avanzano si sommano a 2d6 × 10.
         </p>
+        <div key={state.at} className="grid gap-3 rounded-xl border border-line bg-panel-2 p-3 sm:grid-cols-[120px_minmax(0,1fr)]">
+          <Field label="Sessione (facoltativa)">
+            <input name="advancementSession" type="number" min={1} max={999} defaultValue="" className="field" placeholder="Es. 4" />
+          </Field>
+          <Field label="Registro dei progressi (facoltativo)">
+            <textarea
+              name="advancementSummary"
+              maxLength={1500}
+              rows={2}
+              defaultValue=""
+              className="field resize-y"
+              placeholder="Dopo aver aggiornato la scheda, annota qui cosa è cambiato: nuova Classe/Abilità, ricompense o decisioni del gruppo."
+            />
+          </Field>
+          <p className="text-xs text-muted sm:col-span-2">
+            Se scrivi una sessione, descrivi anche il cambiamento. La nota verrà salvata insieme alla scheda e comparirà nel registro consultabile.
+          </p>
+        </div>
       </Section>
 
       <Section title="Note">

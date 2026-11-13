@@ -73,7 +73,7 @@ export async function listMembers(campaignId: string): Promise<Member[]> {
   const [{ data: members, error }, { data: chars }] = await Promise.all([
     supabase
       .from("campaign_members")
-      .select("user_id, role, profile:profiles(display_name)")
+      .select("user_id, role, profile:profiles!user_id(display_name)")
       .eq("campaign_id", campaignId)
       .order("joined_at"),
     supabase.from("characters").select("owner_id, name").eq("campaign_id", campaignId),
