@@ -1,6 +1,7 @@
 import { deleteThreadAction, toggleThreadAction } from "@/app/actions";
 import type { Thread } from "@/lib/data/types";
 import { InlineTags } from "./entry-body";
+import { ConfirmForm } from "./confirm-form";
 
 export function ThreadItem({
   thread,
@@ -30,11 +31,14 @@ export function ThreadItem({
   return (
     <div className="group flex items-start gap-3 border-t border-line py-3 first:border-t-0">
       {mine ? (
-        <form action={toggleThreadAction.bind(null, campaignId, thread.id, closed ? null : currentSession)}>
-          <button type="submit" className={box} aria-label={label} title={label}>
-            {closed ? "✓" : ""}
-          </button>
-        </form>
+        <ConfirmForm
+          action={toggleThreadAction.bind(null, campaignId, thread.id, closed ? null : currentSession)}
+          className={box}
+          label={label}
+          title={label}
+        >
+          {closed ? "✓" : ""}
+        </ConfirmForm>
       ) : (
         <span className={box} aria-hidden>
           {closed ? "✓" : ""}
@@ -52,16 +56,14 @@ export function ThreadItem({
         </p>
       </div>
       {mine && deletable && (
-        <form action={deleteThreadAction.bind(null, campaignId, thread.id)}>
-          <button
-            type="submit"
-            className="text-xs font-bold text-muted opacity-60 hover:text-danger group-hover:opacity-100"
-            aria-label="Elimina"
-            title="Elimina"
-          >
-            ✕
-          </button>
-        </form>
+        <ConfirmForm
+          action={deleteThreadAction.bind(null, campaignId, thread.id)}
+          className="text-xs font-bold text-muted opacity-60 hover:text-danger group-hover:opacity-100"
+          label="Elimina"
+          title="Elimina"
+        >
+          ✕
+        </ConfirmForm>
       )}
     </div>
   );

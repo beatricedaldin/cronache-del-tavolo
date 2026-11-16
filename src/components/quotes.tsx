@@ -8,6 +8,7 @@ import { DateField } from "./date-field";
 import { RichInline } from "./entry-body";
 import { SubmitButton } from "./submit-button";
 import { TagTextarea } from "./tag-textarea";
+import { ConfirmForm } from "./confirm-form";
 
 type Values = Partial<Record<"speaker" | "text" | "context" | "session" | "date", string>>;
 
@@ -140,16 +141,13 @@ export function QuoteCard({
             </button>
           )}
           {canDelete && (
-            <form
+            <ConfirmForm
               action={deleteQuoteAction.bind(null, campaignId, quote.id)}
-              onSubmit={(e) => {
-                if (!confirm("Togliere questa frase?")) e.preventDefault();
-              }}
+              confirmMessage="Togliere questa frase?"
+              className="font-bold hover:text-danger"
             >
-              <button type="submit" className="font-bold hover:text-danger">
-                Elimina
-              </button>
-            </form>
+              Elimina
+            </ConfirmForm>
           )}
         </span>
       </figcaption>

@@ -7,6 +7,7 @@ import type { EntityRelation } from "@/lib/data/types";
 import type { TagKind } from "@/lib/tags";
 import { VisibilityToggle } from "./composer";
 import { SubmitButton } from "./submit-button";
+import { ConfirmForm } from "./confirm-form";
 
 const LABELS = [
   "sorella di", "fratello di", "figlia di", "figlio di", "madre di", "padre di",
@@ -57,16 +58,14 @@ export function RelationList({
               {(showAuthor || !mine) && <span>{mine ? "tu" : r.ownerName}</span>}
               <span title={r.isPublic ? "La vedono tutti" : "La vedete solo tu e il Master"}>{r.isPublic ? "🌍" : "🔒"}</span>
               {mine && (
-                <form
+                <ConfirmForm
                   action={deleteRelationAction.bind(null, campaignId, r.id)}
-                  onSubmit={(e) => {
-                    if (!confirm("Togliere questa relazione?")) e.preventDefault();
-                  }}
+                  confirmMessage="Togliere questa relazione?"
+                  className="font-bold hover:text-danger"
+                  label="Togli relazione"
                 >
-                  <button type="submit" className="font-bold hover:text-danger" aria-label="Togli relazione">
-                    ✕
-                  </button>
-                </form>
+                  ✕
+                </ConfirmForm>
               )}
             </span>
           </li>

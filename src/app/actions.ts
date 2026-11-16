@@ -67,6 +67,18 @@ const dateOf = (fd: FormData, key = "date") => {
 };
 const errorMessage = (e: unknown) => (e instanceof Error ? e.message : "Qualcosa è andato storto. Riprova.");
 
+/** Esegue una modifica senza dati da form (eliminazioni, spunte) e traduce gli errori in un messaggio da mostrare accanto al pulsante. */
+async function mutate(campaignId: string, run: () => Promise<unknown>): Promise<FormState> {
+  const at = Date.now();
+  try {
+    await run();
+  } catch (e) {
+    return { error: errorMessage(e), at };
+  }
+  revalidatePath(`/c/${campaignId}`, "layout");
+  return { ok: true, at };
+}
+
 // --- Accesso -----------------------------------------------------------------
 
 export async function loginAction(_: FormState, fd: FormData): Promise<FormState> {
@@ -160,14 +172,12 @@ export async function updateEntryAction(campaignId: string, entryId: string, _: 
   return { ok: true, at: Date.now() };
 }
 
-export async function deleteEntryAction(campaignId: string, entryId: string) {
-  await deleteEntry(entryId);
-  revalidatePath(`/c/${campaignId}`, "layout");
+export async function deleteEntryAction(campaignId: string, entryId: string): Promise<FormState> {
+  return mutate(campaignId, () => deleteEntry(entryId));
 }
 
-export async function toggleThreadAction(campaignId: string, threadId: string, resolveInSession: number | null) {
-  await setThreadResolved(threadId, resolveInSession);
-  revalidatePath(`/c/${campaignId}`, "layout");
+export async function toggleThreadAction(campaignId: string, threadId: string, resolveInSession: number | null): Promise<FormState> {
+  return mutate(campaignId, () => setThreadResolved(threadId, resolveInSession));
 }
 
 export async function addThreadAction(campaignId: string, _: FormState, fd: FormData): Promise<FormState> {
@@ -184,9 +194,8 @@ export async function addThreadAction(campaignId: string, _: FormState, fd: Form
   return { ok: true, at };
 }
 
-export async function deleteThreadAction(campaignId: string, threadId: string) {
-  await deleteThread(threadId);
-  revalidatePath(`/c/${campaignId}`, "layout");
+export async function deleteThreadAction(campaignId: string, threadId: string): Promise<FormState> {
+  return mutate(campaignId, () => deleteThread(threadId));
 }
 
 // --- Compendio ---------------------------------------------------------------
@@ -272,9 +281,8 @@ export async function updateNoteAction(campaignId: string, noteId: string, _: Fo
   return { ok: true, at: Date.now() };
 }
 
-export async function deleteNoteAction(campaignId: string, noteId: string) {
-  await deleteNote(noteId);
-  revalidatePath(`/c/${campaignId}`, "layout");
+export async function deleteNoteAction(campaignId: string, noteId: string): Promise<FormState> {
+  return mutate(campaignId, () => deleteNote(noteId));
 }
 
 // --- Scheda PG ---------------------------------------------------------------
@@ -527,9 +535,8 @@ export async function updateQuoteAction(campaignId: string, quoteId: string, _: 
   return { ok: true, at: Date.now() };
 }
 
-export async function deleteQuoteAction(campaignId: string, quoteId: string) {
-  await deleteQuote(quoteId);
-  revalidatePath(`/c/${campaignId}`, "layout");
+export async function deleteQuoteAction(campaignId: string, quoteId: string): Promise<FormState> {
+  return mutate(campaignId, () => deleteQuote(quoteId));
 }
 
 // --- Relazioni del compendio -------------------------------------------------
@@ -559,7 +566,6 @@ export async function addRelationAction(
   return { ok: true, values: { public: keep.public, toKind }, at };
 }
 
-export async function deleteRelationAction(campaignId: string, relationId: string) {
-  await deleteRelation(relationId);
-  revalidatePath(`/c/${campaignId}`, "layout");
+export async function deleteRelationAction(campaignId: string, relationId: string): Promise<FormState> {
+  return mutate(campaignId, () => deleteRelation(relationId));
 }

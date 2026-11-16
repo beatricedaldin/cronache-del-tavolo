@@ -9,6 +9,7 @@ import { DateField } from "./date-field";
 import { EntryBody } from "./entry-body";
 import { SubmitButton } from "./submit-button";
 import { TagTextarea } from "./tag-textarea";
+import { ConfirmForm } from "./confirm-form";
 
 export function EntryCard({
   entry,
@@ -44,16 +45,13 @@ export function EntryCard({
             <button type="button" onClick={() => setEditing(true)} className="text-xs font-bold hover:text-accent">
               Modifica
             </button>
-            <form
+            <ConfirmForm
               action={deleteEntryAction.bind(null, campaignId, entry.id)}
-              onSubmit={(e) => {
-                if (!confirm("Eliminare questa voce? I suoi fili e obiettivi restano nella pagina dei fili.")) e.preventDefault();
-              }}
+              confirmMessage="Eliminare questa voce? I suoi fili e obiettivi restano nella pagina dei fili."
+              className="text-xs font-bold hover:text-danger"
             >
-              <button className="text-xs font-bold hover:text-danger" type="submit">
-                Elimina
-              </button>
-            </form>
+              Elimina
+            </ConfirmForm>
           </span>
         )}
       </div>

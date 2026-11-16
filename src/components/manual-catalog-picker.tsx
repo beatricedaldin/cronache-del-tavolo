@@ -192,7 +192,7 @@ export function ManualCatalogPicker({
                 <button
                   type="button"
                   className="btn-ghost disabled:cursor-not-allowed disabled:opacity-50"
-                  disabled={entry.kind === "heroic" && !availability.available}
+                  disabled={!availability.available}
                   onClick={() => onSelect(entry)}
                 >
                   Aggiungi alla scheda

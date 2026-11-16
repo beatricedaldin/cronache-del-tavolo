@@ -155,9 +155,23 @@ export function CharacterCreationWizard({ campaignId }: { campaignId: string }) 
           {STEP_NAMES.map((name, index) => (
             <li
               key={name}
-              aria-current={index === step ? "step" : undefined}
-              className={`h-1.5 rounded-full ${index <= step ? "bg-accent" : "bg-line"}`}
-            />
+              className="min-w-0"
+            >
+              <button
+                type="button"
+                aria-label={`Vai al passo ${index + 1}: ${name}`}
+                aria-current={index === step ? "step" : undefined}
+                disabled={index >= step}
+                onClick={() => {
+                  setError("");
+                  setStep(index);
+                }}
+                className="w-full disabled:cursor-default"
+              >
+                <span className={`block h-1.5 rounded-full ${index <= step ? "bg-accent" : "bg-line"}`} />
+                <span className="sr-only">{name}</span>
+              </button>
+            </li>
           ))}
         </ol>
 

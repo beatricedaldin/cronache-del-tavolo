@@ -10,6 +10,7 @@ import { formatDay } from "@/lib/dates";
 import { DateField } from "./date-field";
 import { SubmitButton } from "./submit-button";
 import { TagTextarea } from "./tag-textarea";
+import { ConfirmForm } from "./confirm-form";
 
 export function NoteForm({ campaignId, kind, slug, name }: { campaignId: string; kind: TagKind; slug: string; name: string }) {
   const [state, action] = useActionState<FormState, FormData>(addNoteAction.bind(null, campaignId, kind, slug, name), {});
@@ -68,16 +69,13 @@ export function NoteItem({
             <button type="button" className="font-bold hover:text-accent" onClick={() => setEditing(true)}>
               Modifica
             </button>
-            <form
+            <ConfirmForm
               action={deleteNoteAction.bind(null, campaignId, note.id)}
-              onSubmit={(e) => {
-                if (!confirm("Eliminare la nota?")) e.preventDefault();
-              }}
+              confirmMessage="Eliminare la nota?"
+              className="font-bold hover:text-danger"
             >
-              <button type="submit" className="font-bold hover:text-danger">
-                Elimina
-              </button>
-            </form>
+              Elimina
+            </ConfirmForm>
           </span>
         )}
       </p>

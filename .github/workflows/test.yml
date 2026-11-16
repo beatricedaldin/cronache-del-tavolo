@@ -33,6 +33,9 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      - name: Test unitari (regole di Fabula, tag, catalogo)
+        run: pnpm test
+
       - name: Installa il browser per i test
         run: pnpm exec playwright install --with-deps chromium
 
