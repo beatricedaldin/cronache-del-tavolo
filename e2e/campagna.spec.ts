@@ -215,7 +215,7 @@ test("una campagna dall'inizio: visibilità, compendio, frasi, cassa, AI", async
     await expect(p1.locator("p[role=alert]")).toContainText("budget iniziale è 500");
     await p1.getByLabel("Costo").fill("200");
     await p1.getByRole("button", { name: "Crea il personaggio" }).click();
-    await expect(p1.getByRole("heading", { name: "Personaggio creato" })).toBeVisible();
+    await expect(p1.getByRole("heading", { name: "Il tuo personaggio" })).toBeVisible();
     await p1.goto(`${campaignUrl}/scheda`);
     await expect(p1.getByText("Spada di bronzo")).toBeVisible();
     await expect(p1.getByText("Adrenalina")).toBeVisible();
