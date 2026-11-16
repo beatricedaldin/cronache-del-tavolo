@@ -204,11 +204,11 @@ test("una campagna dall'inizio: visibilità, compendio, frasi, cassa, AI", async
     await expect(p1.getByText("Nessuna voce corrisponde ai filtri.")).toBeVisible();
     await p1.getByLabel("Mostra solo le opzioni disponibili per questo PG").uncheck();
     await p1.getByRole("button", { name: "+ Aggiungi rituale personale" }).click();
-    await p1.getByLabel("Rituale 1").fill("Velo protettivo");
+    await p1.getByLabel("Rituale 1", { exact: true }).fill("Velo protettivo");
     await p1.getByRole("button", { name: "Continua" }).click();
 
     await p1.getByRole("button", { name: "+ Aggiungi oggetto" }).click();
-    await p1.getByLabel("Oggetto 1").fill("Spada di bronzo");
+    await p1.getByLabel("Oggetto 1", { exact: true }).fill("Spada di bronzo");
     await p1.getByLabel("Costo").fill("501");
     await p1.getByLabel("Risultato del tiro 2d6").selectOption("7");
     await p1.getByRole("button", { name: "Crea il personaggio" }).click();
