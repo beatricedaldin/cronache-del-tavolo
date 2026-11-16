@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CATALOG_CLASSES, CATALOG_KINDS, FABULA_CATALOG, type CatalogEntry, type CatalogKind } from "@/lib/fabula-catalog";
 import { TECHNOLOGY_DISCIPLINES, type ClassEntry, type SkillEntry, type SpellEntry } from "@/lib/fabula";
 
@@ -121,6 +121,15 @@ export function ManualCatalogPicker({
   const [kind, setKind] = useState<CatalogKind | "all">("all");
   const [className, setClassName] = useState("");
   const [availableOnly, setAvailableOnly] = useState(false);
+  // Voce con requisiti non soddisfatti in attesa di conferma: si può aggiungere lo stesso (regole della casa, materiali di terze parti).
+  const [pending, setPending] = useState<{ entry: CatalogEntry; availability: Availability } | null>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    if (pending && !dialog.open) dialog.showModal();
+    if (!pending && dialog.open) dialog.close();
+  }, [pending]);
   const normalizedQuery = query.trim().toLocaleLowerCase("it");
   const matches = FABULA_CATALOG.map((entry) => ({ entry, availability: getAvailability(entry, classes, skills, spells) }))
     .filter(({ entry, availability }) => {
@@ -191,17 +200,53 @@ export function ManualCatalogPicker({
                 </span>
                 <button
                   type="button"
-                  className="btn-ghost disabled:cursor-not-allowed disabled:opacity-50"
-                  disabled={!availability.available}
-                  onClick={() => onSelect(entry)}
+                  className="btn-ghost"
+                  onClick={() => (availability.available ? onSelect(entry) : setPending({ entry, availability }))}
                 >
-                  Aggiungi alla scheda
+                  {availability.available ? "Aggiungi alla scheda" : "Aggiungi comunque…"}
                 </button>
               </li>
             ))}
           </ul>
         )}
       </div>
+      <dialog
+        ref={dialogRef}
+        onClose={() => setPending(null)}
+        aria-labelledby="catalog-warning-title"
+        className="m-auto w-[min(28rem,calc(100vw-2rem))] rounded-xl border border-line bg-panel p-5 text-ink backdrop:bg-black/50"
+      >
+        {pending && (
+          <div className="flex flex-col gap-3">
+            <h3 id="catalog-warning-title" className="font-display text-xl font-bold">
+              {pending.availability.uncertain ? "Requisiti da verificare" : "Requisiti non soddisfatti"}
+            </h3>
+            <p>
+              <b>{pending.entry.name}</b>
+            </p>
+            <p className="text-sm text-danger">{pending.availability.label}</p>
+            <p className="text-sm text-muted">
+              Puoi aggiungerla lo stesso, per esempio per una regola della casa o per materiale non incluso nel catalogo.
+              Se non sei sicuro, chiedi al Master.
+            </p>
+            <div className="flex flex-wrap justify-end gap-2">
+              <button type="button" className="btn-ghost" autoFocus onClick={() => setPending(null)}>
+                Annulla
+              </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => {
+                  onSelect(pending.entry);
+                  setPending(null);
+                }}
+              >
+                Aggiungi comunque
+              </button>
+            </div>
+          </div>
+        )}
+      </dialog>
     </details>
   );
 }
