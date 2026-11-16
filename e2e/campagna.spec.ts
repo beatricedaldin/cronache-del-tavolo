@@ -145,6 +145,11 @@ test("una campagna dall'inizio: visibilità, compendio, frasi, cassa, AI", async
     await p1.getByRole("button", { name: "Continua" }).click();
     await p1.getByRole("button", { name: "Continua" }).click();
     await p1.getByText("Scegli dal catalogo dei manuali").click();
+    await p1.getByLabel("Cerca").fill("PV Plus");
+    const heroicAbility = p1.getByRole("listitem").filter({ hasText: "PV Plus" });
+    await expect(heroicAbility.getByText("Abilità Eroica")).toBeVisible();
+    await expect(heroicAbility.getByText("Richiede padroneggiare almeno una Classe")).toBeVisible();
+    await expect(heroicAbility.getByRole("button", { name: "Aggiungi alla scheda" })).toBeDisabled();
     await p1.getByLabel("Cerca").fill("Adrenalina");
     await expect(p1.getByText("Disponibile · Furia 3/10")).toBeVisible();
     await p1.getByRole("button", { name: "Aggiungi alla scheda" }).click();

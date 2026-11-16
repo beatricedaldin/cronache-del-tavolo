@@ -49,9 +49,11 @@ function getAvailability(entry: CatalogEntry, classes: ClassEntry[], skills: Ski
   );
   const characterLevel = classes.reduce((total, item) => total + item.level, 0);
   if (entry.requiresMastery) {
-    const mastered = entry.requiredClasses.filter((name) =>
-      (classLevels.get(name.toLocaleLowerCase("it")) ?? 0) >= 10,
-    );
+    const mastered = entry.requiredClasses.length > 0
+      ? entry.requiredClasses.filter((name) =>
+        (classLevels.get(name.toLocaleLowerCase("it")) ?? 0) >= 10,
+      )
+      : classes.filter((item) => item.level >= 10).map((item) => item.name.trim());
     const needed = entry.masteryCount ?? 1;
     if (
       mastered.length >= needed
@@ -68,7 +70,9 @@ function getAvailability(entry: CatalogEntry, classes: ClassEntry[], skills: Ski
       uncertain: false,
       label: [
         mastered.length < needed
-          ? `Richiede padroneggiare ${needed} ${needed === 1 ? "Classe" : "Classi"} tra: ${entry.requiredClasses.join(", ")}`
+          ? entry.requiredClasses.length > 0
+            ? `Richiede padroneggiare ${needed} ${needed === 1 ? "Classe" : "Classi"} tra: ${entry.requiredClasses.join(", ")}`
+            : `Richiede padroneggiare almeno ${needed === 1 ? "una Classe" : `${needed} Classi`}`
           : "",
         entry.requiredCharacterLevel && characterLevel < entry.requiredCharacterLevel
           ? `Richiede livello personaggio ${entry.requiredCharacterLevel} (ora ${characterLevel})`
@@ -163,9 +167,19 @@ export function ManualCatalogPicker({
         ) : (
           <ul className="flex max-h-96 flex-col gap-2 overflow-y-auto">
             {matches.map(({ entry, availability }) => (
-              <li key={entry.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-panel p-3">
+              <li
+                key={entry.id}
+                className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line p-3 ${
+                  !availability.available ? "bg-panel-2" : "bg-panel"
+                }`}
+              >
                 <span>
                   <b>{entry.name}</b>
+                  {entry.kind === "heroic" && (
+                    <span className="ml-2 rounded-full bg-accent/10 px-2 py-0.5 text-xs font-bold text-accent">
+                      Abilità Eroica
+                    </span>
+                  )}
                   <span className="block text-sm text-muted">
                     {entry.requirement} · {entry.source}, p. {entry.page}
                     {entry.maxRank && ` · fino a ${entry.maxRank} gradi`}
@@ -175,7 +189,12 @@ export function ManualCatalogPicker({
                     </span>
                   </span>
                 </span>
-                <button type="button" className="btn-ghost" onClick={() => onSelect(entry)}>
+                <button
+                  type="button"
+                  className="btn-ghost disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={entry.kind === "heroic" && !availability.available}
+                  onClick={() => onSelect(entry)}
+                >
                   Aggiungi alla scheda
                 </button>
               </li>

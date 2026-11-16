@@ -669,8 +669,7 @@ const heroic: CatalogEntry[] = heroicAbilities.map(([name, requirement, source, 
   requiredTechnologyOption: heroicTechnologyRequirements[name],
   requiredCharacterLevel: heroicCharacterLevelRequirements[name],
   requiredOffensiveSpells: heroicOffensiveSpellRequirements[name],
-  requiresMastery: requirement !== "Qualsiasi personaggio"
-    && !requirement.includes("da verificare")
+  requiresMastery: !requirement.includes("da verificare")
     && !requirement.includes("OCR incompleto")
     && !name.startsWith("Voce OCR da identificare"),
   masteryCount: name === "Bimagus" ? 2 : 1,
