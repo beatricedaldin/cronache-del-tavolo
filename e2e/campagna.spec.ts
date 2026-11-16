@@ -212,7 +212,7 @@ test("una campagna dall'inizio: visibilità, compendio, frasi, cassa, AI", async
     await p1.getByLabel("Costo").fill("501");
     await p1.getByLabel("Risultato del tiro 2d6").selectOption("7");
     await p1.getByRole("button", { name: "Crea il personaggio" }).click();
-    await expect(p1.getByRole("alert")).toContainText("budget iniziale è 500");
+    await expect(p1.locator("p[role=alert]")).toContainText("budget iniziale è 500");
     await p1.getByLabel("Costo").fill("200");
     await p1.getByRole("button", { name: "Crea il personaggio" }).click();
     await expect(p1.getByRole("heading", { name: "Personaggio creato" })).toBeVisible();

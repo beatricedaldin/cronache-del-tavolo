@@ -142,7 +142,7 @@ export function CharacterCreationWizard({ campaignId }: { campaignId: string }) 
       <input type="hidden" name="theme" value={basics.theme} />
       <input type="hidden" name="origin" value={basics.origin} />
       <input type="hidden" name="sheet" value={JSON.stringify(sheet)} />
-
+      <input type="hidden" name="savingsRoll" value={savingsRoll} />
       <section className="panel flex flex-col gap-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
