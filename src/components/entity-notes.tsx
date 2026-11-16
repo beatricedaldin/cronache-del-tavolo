@@ -1,7 +1,8 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { addNoteAction, deleteNoteAction, updateNoteAction, type FormState } from "@/app/actions";
+import { addNoteAction, deleteNoteAction, updateNoteAction } from "@/app/actions/compendium";
+import type { FormState } from "@/lib/form";
 import type { EntityNote } from "@/lib/data/types";
 import type { TagKind } from "@/lib/tags";
 import { VisibilityToggle } from "./composer";

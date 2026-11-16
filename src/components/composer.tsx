@@ -1,7 +1,8 @@
 "use client";
 
 import { useActionState, useRef } from "react";
-import { createEntryAction, type FormState } from "@/app/actions";
+import { createEntryAction } from "@/app/actions/diary";
+import type { FormState } from "@/lib/form";
 import { tagSyntax, type TagKind } from "@/lib/tags";
 import { AiWritingTools } from "./ai-writing";
 import { DateField } from "./date-field";

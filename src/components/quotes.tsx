@@ -1,7 +1,8 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { addQuoteAction, deleteQuoteAction, updateQuoteAction, type FormState } from "@/app/actions";
+import { addQuoteAction, deleteQuoteAction, updateQuoteAction } from "@/app/actions/quotes";
+import type { FormState } from "@/lib/form";
 import type { Quote } from "@/lib/data/quotes";
 import { formatDay } from "@/lib/dates";
 import { DateField } from "./date-field";

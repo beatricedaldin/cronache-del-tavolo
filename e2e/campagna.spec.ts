@@ -174,6 +174,16 @@ test("una campagna dall'inizio: visibilità, compendio, frasi, cassa, AI", async
     await expect(p1.getByLabel("Abilità 1", { exact: true })).toHaveValue("Adrenalina");
     await expect(p1.getByLabel("Gradi")).toHaveAttribute("max", "5");
     await expect(p1.getByLabel("Promemoria abilità 1")).toHaveValue(/Aumenta i danni mentre sei in Crisi/);
+    // Una voce con requisiti non soddisfatti si aggiunge solo dopo la conferma nella finestra di avviso.
+    await p1.getByLabel("Cerca").fill("Tecnologie");
+    await p1
+      .getByRole("listitem")
+      .filter({ has: p1.getByText("Tecnologie", { exact: true }) })
+      .getByRole("button", { name: "Aggiungi comunque…" })
+      .click();
+    await p1.getByRole("dialog").getByRole("button", { name: "Aggiungi comunque" }).click();
+    await expect(p1.getByRole("dialog")).toBeHidden();
+    await expect(p1.getByLabel("Abilità 2", { exact: true })).toHaveValue("Tecnologie");
     await p1.getByLabel("Cerca").fill("Fulgur");
     await expect(p1.getByText("Disponibile · Elementalista 2/10")).toBeVisible();
     await p1.getByRole("button", { name: "Aggiungi alla scheda" }).click();

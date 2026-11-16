@@ -1,4 +1,4 @@
-import { deleteThreadAction, toggleThreadAction } from "@/app/actions";
+import { deleteThreadAction, toggleThreadAction } from "@/app/actions/diary";
 import type { Thread } from "@/lib/data/types";
 import { InlineTags } from "./entry-body";
 import { ConfirmForm } from "./confirm-form";

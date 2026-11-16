@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useActionState, useState } from "react";
-import { saveCharacterAction, type FormState } from "@/app/actions";
+import { saveCharacterAction } from "@/app/actions/character";
+import type { FormState } from "@/lib/form";
 import type { Character } from "@/lib/data/types";
 import type { CatalogEntry } from "@/lib/fabula-catalog";
 import { ManualCatalogPicker } from "./manual-catalog-picker";

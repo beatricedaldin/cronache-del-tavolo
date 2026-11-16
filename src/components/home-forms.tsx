@@ -1,7 +1,9 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { createCampaignAction, joinCampaignAction, loginAction, type FormState } from "@/app/actions";
+import { loginAction } from "@/app/actions/auth";
+import { createCampaignAction, joinCampaignAction } from "@/app/actions/campaigns";
+import type { FormState } from "@/lib/form";
 import { SubmitButton } from "./submit-button";
 
 export function LoginForm() {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, type ReactNode } from "react";
-import type { FormState } from "@/app/actions";
+import type { FormState } from "@/lib/form";
 
 /**
  * Un pulsante che esegue una modifica (eliminare, spuntare…), con conferma facoltativa.

@@ -34,19 +34,30 @@ export function toEntry(r: EntryRow): Entry {
   };
 }
 
-/** Le voci di diario che l'utente può leggere: le proprie, quelle pubbliche degli altri, oppure tutte se è il Master. */
-export async function listEntries(campaignId: string): Promise<Entry[]> {
+/**
+ * Le voci di diario che l'utente può leggere: le proprie, quelle pubbliche degli altri, oppure tutte se è il Master.
+ * Dalla più recente. Con `limit` si leggono solo le prime N (utile quando basta il contesto recente).
+ */
+export async function listEntries(campaignId: string, opts: { limit?: number } = {}): Promise<Entry[]> {
   await getCurrentUser();
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from("entries")
     .select(ENTRY_COLUMNS)
     .eq("campaign_id", campaignId)
     .order("session_number", { ascending: false })
     .order("entry_date", { ascending: false })
     .order("created_at", { ascending: false });
+  if (opts.limit) query = query.limit(opts.limit);
+  const { data, error } = await query;
   if (error) throw dbError(error);
   return ((data ?? []) as unknown as EntryRow[]).map(toEntry);
+}
+
+/** Una pagina del diario: le `limit` voci più recenti e se ce ne sono altre più vecchie. */
+export async function listEntriesPage(campaignId: string, limit: number): Promise<{ entries: Entry[]; hasMore: boolean }> {
+  const entries = await listEntries(campaignId, { limit: limit + 1 });
+  return { entries: entries.slice(0, limit), hasMore: entries.length > limit };
 }
 
 export async function latestSessionNumber(campaignId: string): Promise<number> {

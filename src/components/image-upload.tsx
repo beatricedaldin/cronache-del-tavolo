@@ -1,7 +1,7 @@
 "use client";
 
 import { startTransition, useActionState, useState } from "react";
-import type { FormState } from "@/app/actions";
+import type { FormState } from "@/lib/form";
 
 const MAX_SIDE = 1600;
 

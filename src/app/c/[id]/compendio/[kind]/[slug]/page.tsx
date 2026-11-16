@@ -7,7 +7,7 @@ import { getEntity, listTagNames } from "@/lib/data/compendium";
 import { listCharacters } from "@/lib/data/characters";
 import { CardEditor } from "@/components/card-editor";
 import { ImageUpload } from "@/components/image-upload";
-import { removeEntityImageAction, setEntityImageAction } from "@/app/actions";
+import { removeEntityImageAction, setEntityImageAction } from "@/app/actions/compendium";
 import { formatDay } from "@/lib/dates";
 import { EntryBody } from "@/components/entry-body";
 import { NoteForm, NoteItem } from "@/components/entity-notes";

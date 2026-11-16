@@ -1,10 +1,8 @@
 "use client";
 
 import { useActionState, useState, type ReactNode } from "react";
-import {
-  acquireCharacterEquipmentAction,
-  type FormState,
-} from "@/app/actions";
+import { acquireCharacterEquipmentAction } from "@/app/actions/character";
+import type { FormState } from "@/lib/form";
 import {
   EQUIPMENT_ACQUISITIONS,
   EQUIPMENT_SLOTS,

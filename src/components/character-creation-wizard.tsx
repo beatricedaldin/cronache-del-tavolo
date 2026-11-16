@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useActionState, useState, type ReactNode } from "react";
-import { createCharacterAction, type FormState } from "@/app/actions";
+import { createCharacterAction } from "@/app/actions/character";
+import type { FormState } from "@/lib/form";
 import type { CatalogEntry } from "@/lib/fabula-catalog";
 import {
   ATTRIBUTES,

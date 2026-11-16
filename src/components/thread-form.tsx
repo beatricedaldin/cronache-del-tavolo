@@ -1,7 +1,8 @@
 "use client";
 
 import { useActionState } from "react";
-import { addThreadAction, type FormState } from "@/app/actions";
+import { addThreadAction } from "@/app/actions/diary";
+import type { FormState } from "@/lib/form";
 import type { ThreadKind } from "@/lib/data/types";
 import { SubmitButton } from "./submit-button";
 

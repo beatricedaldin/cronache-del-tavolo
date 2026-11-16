@@ -1,7 +1,8 @@
 "use client";
 
 import { useActionState } from "react";
-import { saveCardAction, type FormState } from "@/app/actions";
+import { saveCardAction } from "@/app/actions/compendium";
+import type { FormState } from "@/lib/form";
 import type { EntityCard } from "@/lib/data/types";
 import type { TagKind } from "@/lib/tags";
 import { SubmitButton } from "./submit-button";

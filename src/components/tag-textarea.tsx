@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { tagNamesAction } from "@/app/actions";
+import { tagNamesAction } from "@/app/actions/compendium";
 import { tagSyntax, type TagKind } from "@/lib/tags";
 
 type Name = { kind: TagKind; name: string };

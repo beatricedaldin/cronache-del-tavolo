@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { getCurrentUser } from "@/lib/data/auth";
 import { getCampaign } from "@/lib/data/campaigns";
-import { latestSessionNumber, listEntries } from "@/lib/data/diary";
+import { latestSessionNumber, listEntriesPage } from "@/lib/data/diary";
 import { listEntityNames } from "@/lib/data/compendium";
 import { listThreads } from "@/lib/data/threads";
 import { listQuotes } from "@/lib/data/quotes";
@@ -15,20 +15,32 @@ import { EntryCard } from "@/components/entry-card";
 import { SyntaxLegend } from "@/components/syntax-legend";
 import { ThreadItem } from "@/components/thread-item";
 
-export default function DiaryPage({ params }: PageProps<"/c/[id]">) {
+const PAGE_SIZE = 30;
+const MAX_ENTRIES = 600;
+
+export default function DiaryPage({ params, searchParams }: PageProps<"/c/[id]">) {
   return (
     <Suspense fallback={<p className="text-muted">Apro il diario…</p>}>
-      <Diary params={params} />
+      <Diary params={params} searchParams={searchParams} />
     </Suspense>
   );
 }
 
-async function Diary({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const [user, campaign, entries, session, names, threads, quotes] = await Promise.all([
+async function Diary({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const [{ id }, sp] = await Promise.all([params, searchParams]);
+  // Quante voci mostrare: si parte da PAGE_SIZE e "Mostra altre voci" le aumenta (?voci=60, 90…).
+  const asked = Number.parseInt(typeof sp.voci === "string" ? sp.voci : "", 10);
+  const shown = Number.isFinite(asked) ? Math.min(MAX_ENTRIES, Math.max(PAGE_SIZE, asked)) : PAGE_SIZE;
+  const [user, campaign, { entries, hasMore }, session, names, threads, quotes] = await Promise.all([
     getCurrentUser(),
     getCampaign(id),
-    listEntries(id),
+    listEntriesPage(id, shown),
     latestSessionNumber(id),
     listEntityNames(id),
     listThreads(id),
@@ -57,6 +69,20 @@ async function Diary({ params }: { params: Promise<{ id: string }> }) {
             entries.map((e) => (
               <EntryCard key={e.id} entry={e} campaignId={id} currentUserId={user.id} showAuthor={isGm} />
             ))
+          )}
+          {hasMore && (
+            <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-line pt-4">
+              {shown < MAX_ENTRIES ? (
+                <Link href={`/c/${id}?voci=${shown + PAGE_SIZE}`} scroll={false} className="btn-ghost">
+                  Mostra altre voci
+                </Link>
+              ) : null}
+              <span className="text-sm text-muted">
+                {shown < MAX_ENTRIES
+                  ? `Stai vedendo le ${entries.length} più recenti.`
+                  : `Stai vedendo le ${entries.length} più recenti. Per il resto usa Cerca o Esporta.`}
+              </span>
+            </div>
           )}
         </section>
       </div>

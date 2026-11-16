@@ -1,7 +1,8 @@
 "use client";
 
 import { useActionState } from "react";
-import { changePasswordAction, type FormState } from "@/app/actions";
+import { changePasswordAction } from "@/app/actions/auth";
+import type { FormState } from "@/lib/form";
 import { SubmitButton } from "./submit-button";
 
 export function PasswordForm() {

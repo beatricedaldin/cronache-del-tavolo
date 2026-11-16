@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useActionState } from "react";
-import { addRelationAction, deleteRelationAction, type FormState } from "@/app/actions";
+import { addRelationAction, deleteRelationAction } from "@/app/actions/compendium";
+import type { FormState } from "@/lib/form";
 import type { EntityRelation } from "@/lib/data/types";
 import type { TagKind } from "@/lib/tags";
 import { VisibilityToggle } from "./composer";

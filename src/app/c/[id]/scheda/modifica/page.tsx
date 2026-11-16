@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { getCampaign } from "@/lib/data/campaigns";
 import { getMyCharacter } from "@/lib/data/characters";
-import { removePortraitAction, setPortraitAction } from "@/app/actions";
+import { removePortraitAction, setPortraitAction } from "@/app/actions/character";
 import { BondEditor } from "@/components/bond-editor";
 import { CharacterCreationWizard } from "@/components/character-creation-wizard";
 import { ImageUpload } from "@/components/image-upload";

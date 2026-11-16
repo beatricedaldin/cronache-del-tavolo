@@ -1,7 +1,8 @@
 "use client";
 
 import { useActionState } from "react";
-import { createCardAction, type FormState } from "@/app/actions";
+import { createCardAction } from "@/app/actions/compendium";
+import type { FormState } from "@/lib/form";
 import { SubmitButton } from "./submit-button";
 
 /** Il Master aggiunge al compendio un personaggio o un luogo che nessuno ha ancora citato. */

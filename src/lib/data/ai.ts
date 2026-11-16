@@ -18,6 +18,8 @@ import type { Entry } from "./types";
  */
 
 const MAX_CONTEXT_CHARS = 40_000;
+/** Quante voci recenti leggere per il riassunto «La scorsa volta…». */
+const RECAP_MAX_ENTRIES = 200;
 
 // --- Limite giornaliero per persona -------------------------------------------------
 
@@ -90,7 +92,8 @@ export type Recap = { sessionNumber: number; content: string; createdAt: string 
 
 /** L'ultima sessione di cui l'utente ha qualcosa da leggere. */
 async function lastVisibleSession(campaignId: string) {
-  const entries = await listEntries(campaignId);
+  // Dalla più recente: bastano le ultime voci, il contesto è comunque limitato a MAX_CONTEXT_CHARS.
+  const entries = await listEntries(campaignId, { limit: RECAP_MAX_ENTRIES });
   return { entries, session: entries.reduce((max, e) => Math.max(max, e.sessionNumber), 0) };
 }
 

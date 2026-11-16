@@ -1,7 +1,8 @@
 "use client";
 
 import { useActionState } from "react";
-import { addBondAction, deleteBondAction, updateBondAction, type FormState } from "@/app/actions";
+import { addBondAction, deleteBondAction, updateBondAction } from "@/app/actions/character";
+import type { FormState } from "@/lib/form";
 import type { Bond } from "@/lib/data/types";
 import { bondStrength, EMOTION_PAIRS, RULES } from "@/lib/fabula";
 import { SubmitButton } from "./submit-button";

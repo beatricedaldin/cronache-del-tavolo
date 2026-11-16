@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { signOutAction } from "./actions";
+import { signOutAction } from "./actions/auth";
 import { getCurrentUser } from "@/lib/data/auth";
 import { listMyCampaigns } from "@/lib/data/campaigns";
 import { CreateCampaignForm, JoinCampaignForm } from "@/components/home-forms";

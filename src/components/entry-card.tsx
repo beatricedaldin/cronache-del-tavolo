@@ -1,7 +1,8 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { deleteEntryAction, updateEntryAction, type FormState } from "@/app/actions";
+import { deleteEntryAction, updateEntryAction } from "@/app/actions/diary";
+import type { FormState } from "@/lib/form";
 import type { Entry } from "@/lib/data/types";
 import { VisibilityToggle } from "./composer";
 import { formatDay } from "@/lib/dates";
