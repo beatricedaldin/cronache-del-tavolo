@@ -9,10 +9,10 @@ import { InstallHint } from "@/components/pwa";
 export default function Home() {
   return (
     <main className="mx-auto flex max-w-4xl flex-col gap-8 px-4 py-8">
-      <header className="flex flex-wrap items-end justify-between gap-4 border-b border-line pb-4">
+      <header className="flex flex-wrap items-end justify-between gap-4 rule-gold pb-4">
         <div>
           <p className="label">Fabula Ultima</p>
-          <h1 className="font-display text-4xl font-bold">Cronache del Tavolo</h1>
+          <h1 className="font-display text-4xl font-bold tracking-wide">Cronache del Tavolo</h1>
         </div>
         <Suspense fallback={null}>
           <Account />

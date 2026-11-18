@@ -29,7 +29,7 @@ export function CampaignNav({ campaignId, role }: { campaignId: string; role: Ro
             href={t.href}
             aria-current={active ? "page" : undefined}
             className={`whitespace-nowrap rounded-full px-4 py-1.5 font-bold transition ${
-              active ? "bg-ink text-bg" : "text-muted hover:text-ink"
+              active ? "bg-panel text-gold ring-1 ring-gold/60" : "text-muted hover:text-ink"
             }`}
           >
             {t.label}

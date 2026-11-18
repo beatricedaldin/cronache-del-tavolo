@@ -7,8 +7,27 @@ cd "$(dirname "$0")/.."
 
 ESCLUSI="studio,realtime,edge-runtime,logflare,vector,imgproxy,mailpit,postgres-meta,supavisor"
 
+# Se Supabase era già acceso lo lascio acceso; se l'ho avviato io lo spengo alla fine.
+if pnpm exec supabase status >/dev/null 2>&1; then
+  ERA_ACCESO=1
+else
+  ERA_ACCESO=0
+fi
+cleanup() {
+  local result=$?
+  trap - EXIT
+  if [[ "$ERA_ACCESO" -eq 0 ]]; then
+    echo "▶ Spengo Supabase locale…"
+    pnpm exec supabase stop >/dev/null 2>&1 || true
+  fi
+  exit "$result"
+}
+trap cleanup EXIT
+
 echo "▶ Avvio Supabase locale (Docker)…"
 pnpm exec supabase start -x "$ESCLUSI" >/dev/null
+# Senza riavvio automatico: ripartirebbe da solo a ogni riavvio di Docker.
+docker ps -aq --filter "name=supabase_.*_$(grep '^project_id' supabase/config.toml | cut -d'"' -f2)" | xargs -r docker update --restart=no >/dev/null
 
 echo "▶ Database da zero con tutte le migrazioni…"
 pnpm exec supabase db reset --local >/dev/null

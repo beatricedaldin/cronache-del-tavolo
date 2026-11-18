@@ -129,7 +129,9 @@ Il codice dell'AI è tutto in [src/lib/ai/](src/lib/ai/): per cambiare servizio 
 - **Regole di visibilità (SQL):** [supabase/tests/visibilita.sql](supabase/tests/visibilita.sql), da incollare nell'SQL Editor di Supabase.
 - **Tutto, con un browser vero:** `pnpm test:e2e` (serve Docker). Avvia un Supabase completo in locale, ricrea il database con tutte le migrazioni, esegue il test SQL e poi [e2e/campagna.spec.ts](e2e/campagna.spec.ts): un Master, due giocatori e un estraneo, ciascuno nel suo browser, sia in formato telefono che computer. L'AI usa un servizio finto (`AI_PROVIDER=finto`): niente chiave, niente quota. Il rapporto si apre con `pnpm exec playwright show-report`.
 
-Gli stessi test girano da soli su GitHub a ogni push ([.github/workflows/test.yml](.github/workflows/test.yml)): se qualcosa si rompe, il commit viene segnato con ❌ e arriva un'email. Per spegnere il Supabase locale: `pnpm exec supabase stop`.
+**Supabase locale, solo quando serve.** `pnpm db:start` lo accende, `pnpm db:stop` lo spegne (i dati restano), `pnpm db:status` mostra lo stato. I container non ripartono da soli con Docker o col Mac. `pnpm test:e2e` lo accende se serve e lo rispegne a fine test (se era già acceso, lo lascia com'è).
+
+Gli stessi test girano da soli su GitHub a ogni push ([.github/workflows/test.yml](.github/workflows/test.yml)): se qualcosa si rompe, il commit viene segnato con ❌ e arriva un'email. Per spegnere il Supabase locale: `pnpm db:stop`.
 
 ## App sul telefono (PWA)
 

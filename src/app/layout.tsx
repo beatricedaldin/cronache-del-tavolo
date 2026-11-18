@@ -1,9 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import { JetBrains_Mono, Nunito_Sans, Spectral_SC } from "next/font/google";
+import { Cinzel, JetBrains_Mono, Nunito_Sans } from "next/font/google";
 import "./globals.css";
 import { ServiceWorker } from "@/components/pwa";
 
-const display = Spectral_SC({ variable: "--font-spectral-sc", subsets: ["latin"], weight: ["500", "700"] });
+const display = Cinzel({ variable: "--font-cinzel", subsets: ["latin"], weight: ["500", "700"] });
 const sans = Nunito_Sans({ variable: "--font-nunito-sans", subsets: ["latin"] });
 const mono = JetBrains_Mono({ variable: "--font-jetbrains-mono", subsets: ["latin"], weight: ["500"] });
 
@@ -25,8 +25,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#eef2f9" },
-    { media: "(prefers-color-scheme: dark)", color: "#0f1426" },
+    { media: "(prefers-color-scheme: light)", color: "#f3ecdc" },
+    { media: "(prefers-color-scheme: dark)", color: "#0c0e1d" },
   ],
   // Su iPhone con la tacca il contenuto usa tutto lo schermo; i margini li gestisce il CSS.
   viewportFit: "cover",

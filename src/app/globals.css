@@ -1,49 +1,65 @@
 @import "tailwindcss";
 
-/* Palette da menu JRPG: cielo chiaro / notte indaco, cobalto come accento,
-   viola per i personaggi, verde acqua per i luoghi, ambra per i fili in sospeso,
-   rosa lampone per gli obiettivi. */
+/* Mix moderno/fantasy.
+   Chiaro: "pergamena" (carta calda, inchiostro bruno, indaco arcano, oro antico).
+   Scuro: "notte arcana" (indaco profondo, lavanda, oro).
+   Colori semantici invariati: viola = personaggi, verde acqua = luoghi, ambra = fili, rosa = obiettivi.
+   Contrasti controllati per il testo piccolo (AA). */
 :root {
-  --bg: #eef2f9;
-  --panel: #ffffff;
-  --panel-2: #f5f7fc;
-  --line: #d8deeb;
-  --ink: #1a2140;
-  --muted: #5b6585;
-  --accent: #2f4fd0;
+  --bg: #f3ecdc;
+  --panel: #fbf6e9;
+  --panel-2: #f0e8d3;
+  --line: #dccfae;
+  --ink: #2b2218;
+  --muted: #6a5c46;
+  --accent: #4b3fb5;
   --accent-ink: #ffffff;
-  --npc: #7a3fc4;
-  --npc-bg: #efe6fb;
-  --place: #0f7f7a;
-  --place-bg: #dcf3f1;
-  --thread: #a8650a;
-  --thread-bg: #fbefd9;
-  --goal: #b4235a;
-  --goal-bg: #fbe3ec;
-  --gold: #b98a1f;
-  --danger: #b8323d;
+  --npc: #7b3fb8;
+  --npc-bg: #efe3f7;
+  --place: #0f6f6a;
+  --place-bg: #d9efe8;
+  --thread: #8a4f06;
+  --thread-bg: #f7e6c4;
+  --goal: #b02358;
+  --goal-bg: #f8dfe6;
+  --gold: #7c5a0b;
+  --danger: #b0303a;
+  /* Pulsanti primari: oro. */
+  --gold-hi: #ecc962;
+  --gold-lo: #c99a2e;
+  --btn-ink: #2b2218;
+  /* Bagliori dello sfondo. */
+  --glow-1: rgb(201 154 46 / 0.2);
+  --glow-2: rgb(75 63 181 / 0.1);
+  --shadow: 0 1px 0 rgb(255 255 255 / 0.6) inset, 0 14px 30px -20px rgb(80 55 10 / 0.45);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0f1426;
-    --panel: #171e36;
-    --panel-2: #1c2442;
-    --line: #2b3558;
-    --ink: #e6e9f5;
-    --muted: #9aa3c4;
-    --accent: #7f98ff;
-    --accent-ink: #0f1426;
-    --npc: #c9a3ff;
-    --npc-bg: #2c2149;
-    --place: #5fd6cf;
-    --place-bg: #123634;
-    --thread: #f0b65a;
-    --thread-bg: #3a2b12;
-    --goal: #ff8fb8;
-    --goal-bg: #3f1a2b;
-    --gold: #e3bb55;
-    --danger: #ff7a84;
+    --bg: #0c0e1d;
+    --panel: #141733;
+    --panel-2: #1a1e3f;
+    --line: #2b3060;
+    --ink: #ece8f7;
+    --muted: #a5a2c6;
+    --accent: #b9a6ff;
+    --accent-ink: #0c0e1d;
+    --npc: #d3b0ff;
+    --npc-bg: #2d2150;
+    --place: #62dccf;
+    --place-bg: #11393a;
+    --thread: #f2bd62;
+    --thread-bg: #3a2c12;
+    --goal: #ff93bd;
+    --goal-bg: #43192e;
+    --gold: #e6c05c;
+    --danger: #ff808a;
+    --gold-hi: #f3d57e;
+    --gold-lo: #d1a43c;
+    --btn-ink: #1c1405;
+    --glow-1: rgb(110 80 200 / 0.25);
+    --glow-2: rgb(214 170 60 / 0.1);
+    --shadow: 0 1px 0 rgb(255 255 255 / 0.04) inset, 0 16px 34px -22px rgb(0 0 0 / 0.8);
     color-scheme: dark;
   }
 }
@@ -67,35 +83,69 @@
   --color-goal-bg: var(--goal-bg);
   --color-gold: var(--gold);
   --color-danger: var(--danger);
-  --font-display: var(--font-spectral-sc), Georgia, serif;
+  --font-display: var(--font-cinzel), Georgia, serif;
   --font-sans: var(--font-nunito-sans), system-ui, sans-serif;
   --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
 }
 
 body {
-  background: var(--bg);
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(60rem 38rem at 8% -12%, var(--glow-1), transparent 62%),
+    radial-gradient(48rem 34rem at 100% 0%, var(--glow-2), transparent 58%);
+  background-attachment: fixed;
   color: var(--ink);
   /* App installata su iPhone: niente contenuto sotto la tacca o la barra in basso. */
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
+@media print {
+  body {
+    background: #fff;
+    color: #000;
+  }
+}
+
 @layer components {
+  /* Pannello: carta/vetro con un filo d'oro in alto. */
   .panel {
-    @apply rounded-2xl border border-line bg-panel p-5;
+    @apply relative rounded-2xl border border-line bg-panel p-5;
+    box-shadow: var(--shadow);
+  }
+  .panel::before {
+    content: "";
+    position: absolute;
+    inset: 0 1.5rem auto 1.5rem;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    opacity: 0.55;
+    pointer-events: none;
   }
   .field {
     @apply w-full rounded-lg border border-line bg-panel-2 px-3 py-2 text-ink placeholder:text-muted focus:outline-2 focus:outline-accent;
   }
   .label {
-    @apply text-xs font-extrabold uppercase tracking-wider text-muted;
+    @apply text-xs font-extrabold uppercase tracking-widest text-muted;
   }
+  /* Primario: oro con inchiostro scuro. */
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-full bg-accent px-5 py-2 font-extrabold text-accent-ink transition hover:opacity-90 disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent;
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2 font-extrabold transition disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent;
+    color: var(--btn-ink);
+    background-image: linear-gradient(180deg, var(--gold-hi), var(--gold-lo));
+    box-shadow: 0 1px 0 rgb(255 255 255 / 0.45) inset, 0 6px 14px -8px var(--gold-lo);
+  }
+  .btn:hover:not(:disabled) {
+    filter: brightness(1.06);
   }
   .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 rounded-full border border-line px-4 py-1.5 text-sm font-bold text-ink transition hover:border-accent;
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-line px-4 py-1.5 text-sm font-bold text-ink transition hover:border-gold hover:text-gold;
   }
   .session {
     @apply rounded-md border border-line bg-panel-2 px-1.5 py-px font-mono text-xs text-ink;
+  }
+  /* Filetto dorato sotto le intestazioni. */
+  .rule-gold {
+    border-bottom: 1px solid transparent;
+    border-image: linear-gradient(90deg, var(--gold), transparent 85%) 1;
   }
 }

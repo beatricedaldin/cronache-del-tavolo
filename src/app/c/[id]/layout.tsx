@@ -24,13 +24,13 @@ async function CampaignHeader({ params }: { params: Promise<{ id: string }> }) {
   const isGm = campaign.role === "gm";
 
   return (
-    <header className="flex flex-col gap-4 border-b border-line pb-4 print:hidden">
+    <header className="flex flex-col gap-4 rule-gold pb-4 print:hidden">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <Link href="/" className="label hover:text-accent">
             ← Le tue campagne
           </Link>
-          <h1 className="font-display text-3xl font-bold sm:text-4xl">{campaign.name}</h1>
+          <h1 className="font-display text-3xl font-bold tracking-wide sm:text-4xl">{campaign.name}</h1>
           <p className={`label mt-1 ${isGm ? "text-gold" : ""}`}>
             {isGm ? "Sei il Master: vedi le note di tutti" : "Giocatore: vedi solo le tue note"}
           </p>

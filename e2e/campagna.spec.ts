@@ -7,6 +7,19 @@ import { expect, test, type Browser, type Page } from "@playwright/test";
 
 const PASSWORD = "segreta123";
 
+/** Con E2E_SHOTS=<cartella> salva uno screenshot (chiaro e scuro): serve a controllare l'aspetto, non fa parte dei test. */
+async function shot(page: Page, name: string, project: string) {
+  const dir = process.env.E2E_SHOTS;
+  if (!dir) return;
+  await page.waitForLoadState("networkidle");
+  for (const scheme of ["light", "dark"] as const) {
+    await page.emulateMedia({ colorScheme: scheme });
+    await page.waitForTimeout(600); // le transizioni CSS devono finire
+    await page.screenshot({ path: `${dir}/${name}-${scheme}-${project}.png`, fullPage: true });
+  }
+  await page.emulateMedia({ colorScheme: "light" });
+}
+
 async function signUp(browser: Browser, username: string, displayName: string, baseURL: string) {
   const context = await browser.newContext({ baseURL });
   const page = await context.newPage();
@@ -63,6 +76,7 @@ test("una campagna dall'inizio: visibilità, compendio, frasi, cassa, AI", async
     await expect(p1.getByText("Segreto:")).toBeVisible();
     await expect(p1.getByText("Pubblico:")).toBeVisible();
     await expect(p1.locator("strong", { hasText: "coraggio" })).toBeVisible();
+    await shot(p1, "diario", testInfo.project.name);
   });
 
   await test.step("Carlo vede solo la voce pubblica di Bea", async () => {
@@ -86,6 +100,7 @@ test("una campagna dall'inizio: visibilità, compendio, frasi, cassa, AI", async
     await p1.goto(`${campaignUrl}/compendio/npc/velia`);
     await expect(p1.getByRole("img", { name: "Velia" })).toBeVisible();
     await expect(p1.getByText("Immagine caricata da Carlo")).toBeVisible();
+    await shot(p1, "compendio-velia", testInfo.project.name);
   });
 
   await test.step("il Master vede tutto, anche fili e obiettivi di Bea", async () => {
@@ -256,6 +271,7 @@ test("una campagna dall'inizio: visibilità, compendio, frasi, cassa, AI", async
     await expect(p1.getByText("LA 1/5")).toBeVisible();
     await expect(p1.getByText("Velo protettivo")).toBeVisible();
     await expect(p1.getByText("370", { exact: true })).toBeVisible();
+    await shot(p1, "scheda", testInfo.project.name);
 
     await p2.goto(campaignUrl);
     await expect(p2.getByLabel("Il gruppo").getByText("Kael Senzaterra")).toBeVisible();
@@ -326,6 +342,7 @@ test("una campagna dall'inizio: visibilità, compendio, frasi, cassa, AI", async
     await p1.waitForLoadState("networkidle");
     await p1.getByRole("button", { name: "✨ Scrivi il capitolo 1" }).click();
     await expect(p1.getByText("Testo di prova dell'AI finta.")).toBeVisible();
+    await shot(p1, "libro", testInfo.project.name);
   });
 
   await test.step("il contatore AI personale conta le richieste di Bea", async () => {
@@ -335,6 +352,25 @@ test("una campagna dall'inizio: visibilità, compendio, frasi, cassa, AI", async
     await p2.goto("/account");
     await expect(p2.getByText(/Ne hai usate\s*0\s*su 30/)).toBeVisible();
   });
+
+  // Solo con E2E_SHOTS: le altre pagine, per controllarne l'aspetto.
+  if (process.env.E2E_SHOTS) {
+    for (const [name, path] of [
+      ["cronologia", "/cronologia"],
+      ["fili", "/fili"],
+      ["frasi", "/frasi"],
+      ["inventario", "/cassa"],
+      ["cerca", "/cerca?q=Velia"],
+      ["compendio", "/compendio"],
+    ]) {
+      await p1.goto(`${campaignUrl}${path}`);
+      await shot(p1, name, testInfo.project.name);
+    }
+    await p1.goto("/account");
+    await shot(p1, "account", testInfo.project.name);
+    await p1.goto("/");
+    await shot(p1, "home", testInfo.project.name);
+  }
 
   await test.step("esportazione in Markdown", async () => {
     const res = await p1.request.get(`${campaignUrl}/esporta`);
