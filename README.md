@@ -92,7 +92,7 @@ Fili e obiettivi restano privati anche se la voce è pubblica. Si possono aggiun
 - **Modifica delle voci**: citazioni, fili e obiettivi si riallineano al nuovo testo (quelli già chiusi restano).
 - **Data** su ogni voce e nota: di default oggi, si può cambiare.
 - **Cronologia**: la campagna sessione per sessione (prime apparizioni, chi ritorna, fili aperti e chiusi).
-- **Cerca**: in diario, compendio, note, fili e obiettivi, solo tra quello che puoi già leggere.
+- **Cerca**: in diario, compendio, note, fili, obiettivi e frasi, solo tra quello che puoi già leggere. Trova la frase esatta (anche un pezzo di nome: «Vel») e, per le domande, le singole parole in italiano con le loro varianti («chi ci ha rubato le mappe?» trova «mancavano le mappe»), con i risultati più pertinenti in cima ([0020_ricerca_italiano.sql](supabase/migrations/0020_ricerca_italiano.sql)).
 - **Esporta**: scarica in Markdown tutto quello che vedi della campagna.
 - **Immagini** (compendio e ritratti) in Supabase Storage, in bucket privati. Vengono ridimensionate nel browser prima del caricamento.
 - **Account**: cambio password dall'app.

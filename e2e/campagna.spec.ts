@@ -326,6 +326,18 @@ test("una campagna dall'inizio: visibilità, compendio, frasi, cassa, AI", async
     await expect(p2.getByText("Nessun risultato")).toBeVisible();
   });
 
+  await test.step("ricerca per parole in italiano, sempre nel rispetto della visibilità", async () => {
+    // "guidava" non è nel testo ("ci guida"): la trova la ricerca in italiano, non quella della frase esatta.
+    await p2.goto(`${campaignUrl}/cerca?q=${encodeURIComponent("chi ci guidava verso il porto?")}`);
+    await expect(p2.getByText("Pubblico:")).toBeVisible();
+    // La voce privata di Bea ("Ombra era un gatto") la trova solo Bea.
+    const q = encodeURIComponent("quali gatti?");
+    await p1.goto(`${campaignUrl}/cerca?q=${q}`);
+    await expect(p1.getByText("Segreto corretto:")).toBeVisible();
+    await p2.goto(`${campaignUrl}/cerca?q=${q}`);
+    await expect(p2.getByText("Nessun risultato")).toBeVisible();
+  });
+
   await test.step("AI (finta): riassunto, tag suggeriti, libro", async () => {
     await p1.goto(campaignUrl);
     await p1.waitForLoadState("networkidle");
