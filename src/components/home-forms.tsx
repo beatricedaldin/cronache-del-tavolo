@@ -68,6 +68,30 @@ export function CreateCampaignForm() {
   );
 }
 
+/** Per chi gioca a un tavolo che non usa l'app: scheda, diario e memoria del proprio PG, da solo. */
+export function CreatePersonalCampaignForm() {
+  const [state, action] = useActionState<FormState, FormData>(createCampaignAction, {});
+  return (
+    <form action={action} className="panel flex flex-col gap-3 sm:col-span-2">
+      <input type="hidden" name="personal" value="1" />
+      <h2 className="font-display text-xl font-bold">Gioco per conto mio</h2>
+      <p className="text-sm text-muted">
+        Il tuo tavolo non usa l&apos;app? Tieni lo stesso scheda, diario e memoria del tuo PG. Se più avanti il gruppo vuole
+        unirsi, potrai aprire la campagna.
+      </p>
+      <input
+        name="name"
+        required
+        className="field"
+        placeholder="Nome della campagna"
+        aria-label="Nome della tua campagna personale"
+      />
+      <SubmitButton>Crea la mia campagna</SubmitButton>
+      {state.error && <p className="text-sm font-bold text-danger">{state.error}</p>}
+    </form>
+  );
+}
+
 export function JoinCampaignForm() {
   const [state, action] = useActionState<FormState, FormData>(joinCampaignAction, {});
   return (

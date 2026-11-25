@@ -5,6 +5,7 @@ import { CharacterEquipmentForm } from "@/components/character-equipment-form";
 import { EQUIPMENT_ACQUISITIONS, EQUIPMENT_SLOTS } from "@/lib/fabula";
 import { getMyCharacter } from "@/lib/data/characters";
 import { getCampaign } from "@/lib/data/campaigns";
+import { seesAsMaster } from "@/lib/data/types";
 import { latestSessionNumber } from "@/lib/data/diary";
 
 export const metadata: Metadata = { title: "Inventario PG" };
@@ -75,12 +76,12 @@ async function PersonalResources({ params }: { params: Promise<{ id: string }> }
         <section className="panel flex flex-col items-start gap-3">
           <h2 className="font-display text-xl font-bold">Nessuna scheda personale</h2>
           <p className="text-sm text-muted">
-            {campaign.role === "gm"
+            {seesAsMaster(campaign)
               ? "Le risorse personali compaiono qui quando crei un tuo personaggio."
               : "Crea la tua scheda per registrare Zenit ed equipaggiamento personali."}
           </p>
           <Link href={`/c/${id}/scheda/modifica`} className="btn-ghost">
-            {campaign.role === "gm" ? "Crea un personaggio" : "Crea la scheda"}
+            {seesAsMaster(campaign) ? "Crea un personaggio" : "Crea la scheda"}
           </Link>
         </section>
       )}

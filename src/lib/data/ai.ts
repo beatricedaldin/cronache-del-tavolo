@@ -10,7 +10,7 @@ import { getEntity, listTagNames } from "./compendium";
 import { listEntries } from "./diary";
 import { listQuotes } from "./quotes";
 import { listThreads } from "./threads";
-import type { Entry } from "./types";
+import { seesAsMaster, type Entry } from "./types";
 
 /**
  * Funzioni AI. Regola d'oro: all'AI arriva SOLO quello che l'utente può già leggere.
@@ -126,8 +126,8 @@ export async function generateMyRecap(campaignId: string): Promise<Recap> {
     listTagNames(campaignId),
   ]);
   if (session === 0) throw new AiError("Il diario è ancora vuoto: non c'è niente da riassumere.");
-  const isGm = campaign.role === "gm";
-  const character = isGm ? null : await getMyCharacter(campaignId);
+  const isGm = seesAsMaster(campaign);
+  const character = await getMyCharacter(campaignId);
 
   const thisSession = entries.filter((e) => e.sessionNumber === session);
   const earlier = entries.filter((e) => e.sessionNumber < session);
@@ -179,8 +179,8 @@ export async function askAboutEntity(campaignId: string, kind: TagKind, slug: st
   const user = await getCurrentUser();
   const [campaign, entity, names] = await Promise.all([getCampaign(campaignId), getEntity(campaignId, kind, slug), listTagNames(campaignId)]);
   if (!entity) throw new AiError("Non trovo niente su questa voce.");
-  const isGm = campaign.role === "gm";
-  const character = isGm ? null : await getMyCharacter(campaignId);
+  const isGm = seesAsMaster(campaign);
+  const character = await getMyCharacter(campaignId);
   const lower = entity.name.toLocaleLowerCase("it");
   const myBond = character?.bonds.find((b) => b.target.toLocaleLowerCase("it") === lower);
 
@@ -224,8 +224,13 @@ export async function writeProse(campaignId: string, notes: string): Promise<str
   await getCurrentUser();
   const clean = notes.trim();
   if (clean.length < 10) throw new AiError("Scrivi prima qualche appunto: l'AI li trasforma in prosa.");
-  const [campaign, names] = await Promise.all([getCampaign(campaignId), listTagNames(campaignId)]);
-  const character = campaign.role === "gm" ? null : await getMyCharacter(campaignId);
+  // getCampaign controlla che l'utente sia membro. Anche il Master può avere un PG
+  // (campagna personale): se c'è, si scrive con la sua voce.
+  const [, names, character] = await Promise.all([
+    getCampaign(campaignId),
+    listTagNames(campaignId),
+    getMyCharacter(campaignId),
+  ]);
 
   const voice = character
     ? `Scrivi in prima persona, con la voce di ${character.name}${character.identity ? ` (${character.identity})` : ""}${
@@ -339,7 +344,7 @@ export async function writeChapter(campaignId: string, session: number): Promise
   const thisSession = entries.filter((e) => e.sessionNumber === session).reverse();
   if (thisSession.length === 0) throw new AiError(`Non ci sono voci che puoi leggere per la sessione ${session}.`);
   const previous = [...book.chapters].filter((c) => c.sessionNumber < session).pop();
-  const isGm = campaign.role === "gm";
+  const isGm = seesAsMaster(campaign);
 
   const prompt = `Scrivi il capitolo del «Libro della Campagna» dedicato alla SESSIONE ${session}.
 È una cronaca narrativa da conservare come ricordo: terza persona, tempo passato, come un romanzo fantasy leggero.

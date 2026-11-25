@@ -4,7 +4,7 @@ import { getCurrentUser } from "@/lib/data/auth";
 import { getCampaign } from "@/lib/data/campaigns";
 import { latestSessionNumber } from "@/lib/data/diary";
 import { listThreads } from "@/lib/data/threads";
-import type { Thread, ThreadKind } from "@/lib/data/types";
+import { seesAsMaster, type Thread, type ThreadKind } from "@/lib/data/types";
 import { ThreadForm } from "@/components/thread-form";
 import { ThreadItem } from "@/components/thread-item";
 
@@ -26,7 +26,7 @@ async function Threads({ params }: { params: Promise<{ id: string }> }) {
     listThreads(id),
     latestSessionNumber(id),
   ]);
-  const isGm = campaign.role === "gm";
+  const isGm = seesAsMaster(campaign);
 
   const column = (kind: ThreadKind, title: string, hint: string, empty: string) => {
     const list = threads.filter((t) => t.kind === kind);

@@ -12,14 +12,14 @@ export async function listMyCampaigns(): Promise<CampaignSummary[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("campaign_members")
-    .select("role, campaign:campaigns(id, name)")
+    .select("role, campaign:campaigns(id, name, personal)")
     .eq("user_id", user.id)
     .order("joined_at", { ascending: false });
   if (error) throw dbError(error);
 
   return (data ?? []).flatMap((row) => {
-    const c = row.campaign as unknown as { id: string; name: string } | null;
-    return c ? [{ id: c.id, name: c.name, role: row.role as Role }] : [];
+    const c = row.campaign as unknown as { id: string; name: string; personal: boolean } | null;
+    return c ? [{ id: c.id, name: c.name, role: row.role as Role, personal: c.personal }] : [];
   });
 }
 
@@ -29,13 +29,13 @@ export const getCampaign = cache(async (campaignId: string): Promise<Campaign> =
   const supabase = await createClient();
   const { data } = await supabase
     .from("campaign_members")
-    .select("role, campaign:campaigns(id, name, gm_id, invite_code)")
+    .select("role, campaign:campaigns(id, name, gm_id, invite_code, personal)")
     .eq("user_id", user.id)
     .eq("campaign_id", campaignId)
     .maybeSingle();
 
   const c = data?.campaign as unknown as
-    | { id: string; name: string; gm_id: string; invite_code: string }
+    | { id: string; name: string; gm_id: string; invite_code: string; personal: boolean }
     | null
     | undefined;
   if (!data || !c) notFound();
@@ -45,18 +45,35 @@ export const getCampaign = cache(async (campaignId: string): Promise<Campaign> =
     id: c.id,
     name: c.name,
     role,
+    personal: c.personal,
     gmId: c.gm_id,
-    // Il codice invito lo vede solo il Master.
-    inviteCode: role === "gm" ? c.invite_code : null,
+    // Il codice invito lo vede solo il Master, e solo quando funziona (non nelle campagne personali).
+    inviteCode: role === "gm" && !c.personal ? c.invite_code : null,
   };
 });
 
-export async function createCampaign(name: string): Promise<string> {
+export async function createCampaign(name: string, personal = false): Promise<string> {
   await getCurrentUser();
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("create_campaign", { p_name: name });
+  const { data, error } = await supabase.rpc("create_campaign", { p_name: name, p_personal: personal });
   if (error) throw dbError(error);
   return data as string;
+}
+
+/** Apre una campagna personale al gruppo: da qui il codice invito funziona. Non si torna indietro. */
+export async function openCampaign(campaignId: string): Promise<void> {
+  await getCurrentUser();
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("open_campaign", { p_campaign: campaignId });
+  if (error) throw dbError(error);
+}
+
+/** Il Master passa il ruolo a un giocatore della campagna e diventa giocatore. */
+export async function transferGm(campaignId: string, userId: string): Promise<void> {
+  await getCurrentUser();
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("transfer_gm", { p_campaign: campaignId, p_user: userId });
+  if (error) throw dbError(error);
 }
 
 export async function joinCampaign(code: string): Promise<string> {

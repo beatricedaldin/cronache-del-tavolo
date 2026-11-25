@@ -384,3 +384,50 @@ test("una campagna dall'inizio: visibilità, compendio, frasi, cassa, AI", async
     expect(await other.text()).not.toContain("Segreto corretto");
   });
 });
+
+test("campagna personale: un giocatore da solo, poi il gruppo si unisce", async ({ browser, baseURL }, testInfo) => {
+  const run = `${testInfo.project.name.slice(0, 3)}${Date.now().toString(36)}`;
+  const solo = await signUp(browser, `solo${run}`, "Dora", baseURL!);
+  const master = await signUp(browser, `vero${run}`, "Vero Master", baseURL!);
+  solo.on("dialog", (d) => d.accept());
+
+  let campaignUrl = "";
+
+  await test.step("crea la campagna personale e arriva alla scheda del PG", async () => {
+    await solo.getByLabel("Nome della tua campagna personale").fill("Il diario di Dora");
+    await solo.getByRole("button", { name: "Crea la mia campagna" }).click();
+    await expect(solo).toHaveURL(/\/scheda\/modifica$/);
+    await expect(solo.getByLabel("Nome del PG")).toBeVisible();
+    await expect(solo.getByText("Campagna personale: la vedi solo tu")).toBeVisible();
+    await expect(solo.locator("span.select-all")).toHaveCount(0);
+    await expect(solo.getByRole("link", { name: "Scheda PG" })).toBeVisible();
+    campaignUrl = new URL(solo.url()).pathname.replace(/\/scheda\/modifica$/, "");
+  });
+
+  await test.step("scrive nel diario e aggiunge un filo a mano", async () => {
+    await writeEntry(solo, campaignUrl, "Arrivati a #Portocielo con @Velia", false);
+    await expect(solo.getByText("Arrivati a")).toBeVisible();
+    await solo.goto(`${campaignUrl}/fili`);
+    await expect(solo.locator('input[name="text"]').first()).toBeVisible();
+  });
+
+  await test.step("apre la campagna al gruppo e passa il ruolo al vero Master", async () => {
+    await solo.goto(`${campaignUrl}/scheda`);
+    await solo.getByRole("button", { name: "Apri la campagna al gruppo" }).click();
+    const code = (await solo.locator("span.select-all").innerText()).trim();
+    expect(code).toMatch(/^[A-F0-9]{8}$/);
+
+    await master.goto("/");
+    await master.getByLabel("Codice invito").fill(code);
+    await master.getByRole("button", { name: "Entra nella campagna" }).click();
+    await expect(master).toHaveURL(new RegExp(`${campaignUrl}/scheda$`));
+
+    await solo.goto(`${campaignUrl}/scheda`);
+    await expect(solo.getByRole("link", { name: "Giocatori" })).toBeVisible();
+    await solo.getByRole("button", { name: "Passa il ruolo di Master" }).click();
+    await expect(solo.getByText("Giocatore: vedi solo le tue note")).toBeVisible();
+
+    await master.reload();
+    await expect(master.getByText("Sei il Master: vedi le note di tutti")).toBeVisible();
+  });
+});

@@ -61,9 +61,11 @@ async function Diary({
         <section className="panel">
           {entries.length === 0 ? (
             <p className="italic text-muted">
-              {isGm
-                ? "Nessuno ha ancora scritto nel diario."
-                : "Il diario è vuoto. Scrivi cosa ricordi dell'ultima sessione: le voci pubbliche le leggerà tutto il gruppo."}
+              {campaign.personal
+                ? "Il diario è vuoto. Scrivi cosa ricordi dell'ultima sessione: resta qui per te."
+                : isGm
+                  ? "Nessuno ha ancora scritto nel diario."
+                  : "Il diario è vuoto. Scrivi cosa ricordi dell'ultima sessione: le voci pubbliche le leggerà tutto il gruppo."}
             </p>
           ) : (
             entries.map((e) => (

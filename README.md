@@ -33,7 +33,19 @@ La regola è applicata dal database con Row Level Security ([supabase/migrations
 
 6. Apri http://localhost:3000 e crea un account. Chi crea una campagna ne diventa il **Master** e riceve il codice invito da passare ai giocatori. I giocatori creano il proprio account e inseriscono il codice.
 
+   Se il tavolo non usa l'app, un giocatore può creare una **campagna personale** ("Gioco per conto mio"): vedi sotto.
+
 > **Accesso senza email.** Supabase vuole comunque un'email: l'app la ricava dal nome utente (`nome@giocatori.cronache-del-tavolo.local`) e non la usa per inviare nulla. Non esiste "password dimenticata": la reimposta chi gestisce il progetto, da **Authentication > Users** nella dashboard di Supabase.
+
+## Campagna personale
+
+Per chi gioca a un tavolo dove il Master e gli altri non usano l'app.
+
+- Dalla home, **Gioco per conto mio**: si crea una campagna di cui si è l'unico membro. Si tengono scheda, inventario, diario, fili e obiettivi, frasi e compendio (comprese le schede pubbliche di personaggi e luoghi, che altrimenti scrive il Master).
+- Finché è personale il codice invito non funziona e non compare.
+- Se il gruppo vuole unirsi: **Scheda PG → Apri la campagna al gruppo**. Il codice invito si attiva (non si torna indietro). Quando il vero Master è entrato, dalla pagina **Giocatori** gli si passa il ruolo: si torna giocatore e diario, scheda e note restano propri. Finché non lo si fa, il Master resta chi ha creato la campagna e vede le note private di chi entra.
+
+Nel database chi crea la campagna personale ha il ruolo di Master: le regole di visibilità non cambiano, cambia solo quello che mostra l'app ([0017_campagna_personale.sql](supabase/migrations/0017_campagna_personale.sql)).
 
 ## Online su Vercel
 

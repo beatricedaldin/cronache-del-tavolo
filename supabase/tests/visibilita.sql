@@ -26,6 +26,8 @@ declare
   rel_pub  uuid;
   n        int;
   failed   boolean;
+  solo      uuid;
+  solo_code text;
 begin
   -- Utenti finti (il trigger crea i profili) ---------------------------------
   insert into auth.users (id, email, raw_user_meta_data) values
@@ -261,6 +263,49 @@ begin
   assert n = 1, '❌ TEST FALLITO: G2 vede ancora una voce che G1 ha reso privata';
   select count(*) into n from public.entities where campaign_id = camp and owner_id = p1;
   assert n = 0, '❌ TEST FALLITO: G2 vede ancora i personaggi di una voce tornata privata';
+
+  -- Campagna personale: un giocatore da solo, poi il gruppo si unisce ----------
+  perform set_config('request.jwt.claim.sub', outsider::text, true);
+  perform set_config('request.jwt.claims', json_build_object('sub', outsider, 'role', 'authenticated')::text, true);
+  solo := public.create_campaign('Il diario del mio PG', true);
+  select invite_code into solo_code from public.campaigns where id = solo;
+  insert into public.characters (campaign_id, owner_id, name) values (solo, outsider, 'PG in solitaria');
+  select count(*) into n from public.characters where campaign_id = solo and owner_id = outsider;
+  assert n = 1, '❌ TEST FALLITO: in una campagna personale non si riesce a creare il proprio PG';
+
+  perform set_config('request.jwt.claim.sub', p2::text, true);
+  perform set_config('request.jwt.claims', json_build_object('sub', p2, 'role', 'authenticated')::text, true);
+  failed := false;
+  begin
+    perform public.join_campaign(solo_code);
+  exception when others then failed := true;
+  end;
+  assert failed, '❌ TEST FALLITO: si entra in una campagna personale con il codice invito';
+  failed := false;
+  begin
+    perform public.open_campaign(solo);
+  exception when others then failed := true;
+  end;
+  assert failed, '❌ TEST FALLITO: chi non è membro riesce ad aprire una campagna personale';
+  select count(*) into n from public.campaigns where id = solo;
+  assert n = 0, '❌ TEST FALLITO: un estraneo vede una campagna personale';
+
+  perform set_config('request.jwt.claim.sub', outsider::text, true);
+  perform set_config('request.jwt.claims', json_build_object('sub', outsider, 'role', 'authenticated')::text, true);
+  perform public.open_campaign(solo);
+
+  perform set_config('request.jwt.claim.sub', p2::text, true);
+  perform set_config('request.jwt.claims', json_build_object('sub', p2, 'role', 'authenticated')::text, true);
+  perform public.join_campaign(solo_code);
+  select count(*) into n from public.campaign_party(solo);
+  assert n = 2, '❌ TEST FALLITO: nel gruppo di una campagna aperta manca il PG di chi l''ha creata';
+
+  perform set_config('request.jwt.claim.sub', outsider::text, true);
+  perform set_config('request.jwt.claims', json_build_object('sub', outsider, 'role', 'authenticated')::text, true);
+  perform public.transfer_gm(solo, p2);
+  assert not public.is_gm(solo), '❌ TEST FALLITO: dopo aver passato il ruolo, chi ha creato la campagna è ancora Master';
+  select count(*) into n from public.characters where campaign_id = solo and owner_id = outsider;
+  assert n = 1, '❌ TEST FALLITO: passando il ruolo di Master si perde il proprio PG';
 
   -- Chi non ha fatto l'accesso non legge niente -------------------------------
   perform set_config('role', 'anon', true);

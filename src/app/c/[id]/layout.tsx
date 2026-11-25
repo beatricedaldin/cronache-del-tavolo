@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { getCampaign, listParty } from "@/lib/data/campaigns";
 import { CampaignNav } from "@/components/campaign-nav";
+import { seesAsMaster } from "@/lib/data/types";
 
 export default function CampaignLayout({ children, params }: LayoutProps<"/c/[id]">) {
   return (
@@ -21,7 +22,7 @@ function HeaderSkeleton() {
 async function CampaignHeader({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const campaign = await getCampaign(id);
-  const isGm = campaign.role === "gm";
+  const isGm = seesAsMaster(campaign);
 
   return (
     <header className="flex flex-col gap-4 rule-gold pb-4 print:hidden">
@@ -32,7 +33,11 @@ async function CampaignHeader({ params }: { params: Promise<{ id: string }> }) {
           </Link>
           <h1 className="font-display text-3xl font-bold tracking-wide sm:text-4xl">{campaign.name}</h1>
           <p className={`label mt-1 ${isGm ? "text-gold" : ""}`}>
-            {isGm ? "Sei il Master: vedi le note di tutti" : "Giocatore: vedi solo le tue note"}
+            {campaign.personal
+              ? "Campagna personale: la vedi solo tu"
+              : isGm
+                ? "Sei il Master: vedi le note di tutti"
+                : "Giocatore: vedi solo le tue note"}
           </p>
         </div>
         <div className="flex flex-wrap items-end gap-4">
@@ -58,7 +63,7 @@ async function CampaignHeader({ params }: { params: Promise<{ id: string }> }) {
       <Suspense fallback={null}>
         <Party campaignId={campaign.id} />
       </Suspense>
-      <CampaignNav campaignId={campaign.id} role={campaign.role} />
+      <CampaignNav campaignId={campaign.id} asMaster={isGm} />
     </header>
   );
 }

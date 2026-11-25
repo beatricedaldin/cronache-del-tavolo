@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { Role } from "@/lib/data/types";
 
-export function CampaignNav({ campaignId, role }: { campaignId: string; role: Role }) {
+export function CampaignNav({ campaignId, asMaster }: { campaignId: string; asMaster: boolean }) {
   const pathname = usePathname();
   const base = `/c/${campaignId}`;
   const tabs = [
@@ -15,7 +14,7 @@ export function CampaignNav({ campaignId, role }: { campaignId: string; role: Ro
     { href: `${base}/frasi`, label: "Frasi" },
     { href: `${base}/cassa`, label: "Inventario PG" },
     { href: `${base}/libro`, label: "📖 Libro" },
-    { href: `${base}/scheda`, label: role === "gm" ? "Giocatori" : "Scheda PG" },
+    { href: `${base}/scheda`, label: asMaster ? "Giocatori" : "Scheda PG" },
     { href: `${base}/cerca`, label: "🔍 Cerca" },
   ];
 

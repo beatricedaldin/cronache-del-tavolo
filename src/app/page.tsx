@@ -3,7 +3,8 @@ import { Suspense } from "react";
 import { signOutAction } from "./actions/auth";
 import { getCurrentUser } from "@/lib/data/auth";
 import { listMyCampaigns } from "@/lib/data/campaigns";
-import { CreateCampaignForm, JoinCampaignForm } from "@/components/home-forms";
+import { seesAsMaster } from "@/lib/data/types";
+import { CreateCampaignForm, CreatePersonalCampaignForm, JoinCampaignForm } from "@/components/home-forms";
 import { InstallHint } from "@/components/pwa";
 
 export default function Home() {
@@ -28,6 +29,7 @@ export default function Home() {
       <section className="grid gap-4 sm:grid-cols-2">
         <JoinCampaignForm />
         <CreateCampaignForm />
+        <CreatePersonalCampaignForm />
       </section>
     </main>
   );
@@ -55,7 +57,7 @@ async function Campaigns() {
   if (campaigns.length === 0) {
     return (
       <p className="panel text-muted">
-        Non fai ancora parte di nessuna campagna. Entra con il codice del Master, oppure creane una.
+        Non fai ancora parte di nessuna campagna. Entra con il codice del Master, creane una, oppure tieni da solo il diario del tuo PG.
       </p>
     );
   }
@@ -66,8 +68,8 @@ async function Campaigns() {
         {campaigns.map((c) => (
           <li key={c.id}>
             <Link href={`/c/${c.id}`} className="panel flex flex-col gap-1 transition hover:border-accent">
-              <span className={`label ${c.role === "gm" ? "text-gold" : ""}`}>
-                {c.role === "gm" ? "Master" : "Giocatore"}
+              <span className={`label ${seesAsMaster(c) ? "text-gold" : ""}`}>
+                {c.personal ? "Personale" : c.role === "gm" ? "Master" : "Giocatore"}
               </span>
               <span className="font-display text-2xl font-bold">{c.name}</span>
             </Link>

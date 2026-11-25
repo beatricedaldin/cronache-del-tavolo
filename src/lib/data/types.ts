@@ -5,9 +5,16 @@ export type Role = "gm" | "player";
 
 export type CurrentUser = { id: string; username: string; displayName: string };
 
-export type CampaignSummary = { id: string; name: string; role: Role };
+/** personal: campagna personale, tenuta da un giocatore da solo (vedi migrazione 0017). */
+export type CampaignSummary = { id: string; name: string; role: Role; personal: boolean };
 
 export type Campaign = CampaignSummary & { inviteCode: string | null; gmId: string };
+
+/**
+ * Vede la campagna da Master: le note di tutti e l'elenco dei giocatori al posto della scheda.
+ * In una campagna personale chi l'ha creata è Master solo sulla carta: la vive da giocatore.
+ */
+export const seesAsMaster = (c: Pick<CampaignSummary, "role" | "personal">) => c.role === "gm" && !c.personal;
 
 export type Entry = {
   id: string;

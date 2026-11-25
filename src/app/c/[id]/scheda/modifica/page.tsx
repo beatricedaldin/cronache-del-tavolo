@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { getCampaign } from "@/lib/data/campaigns";
 import { getMyCharacter } from "@/lib/data/characters";
+import { seesAsMaster } from "@/lib/data/types";
 import { removePortraitAction, setPortraitAction } from "@/app/actions/character";
 import { BondEditor } from "@/components/bond-editor";
 import { CharacterCreationWizard } from "@/components/character-creation-wizard";
@@ -21,11 +22,10 @@ export default function EditSheetPage({ params }: PageProps<"/c/[id]/scheda/modi
 
 async function EditSheet({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const campaign = await getCampaign(id);
-  // Il Master non ha un PG: vede le schede dei giocatori.
-  if (campaign.role === "gm") redirect(`/c/${id}/scheda`);
-
-  const character = await getMyCharacter(id);
+  const [campaign, character] = await Promise.all([getCampaign(id), getMyCharacter(id)]);
+  // Il Master di solito non ha un PG: vede le schede dei giocatori. Ce l'ha chi ha creato una
+  // campagna personale, anche dopo averla aperta al gruppo (finché non passa il ruolo).
+  if (seesAsMaster(campaign) && !character) redirect(`/c/${id}/scheda`);
   return (
     <div className={character ? "grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_380px]" : ""}>
       {character ? <SheetEditor campaignId={id} character={character} /> : <CharacterCreationWizard campaignId={id} />}
@@ -49,7 +49,7 @@ async function EditSheet({ params }: { params: Promise<{ id: string }> }) {
                 label="Carica ritratto"
               />
             </div>
-            <p className="text-xs text-muted">Lo vedono tutti al tavolo, insieme al nome del PG. Il resto della scheda resta tra te e il Master.</p>
+            <p className="text-xs text-muted">Lo vedono tutti al tavolo, insieme al nome del PG. {campaign.personal ? "Il resto della scheda lo vedi solo tu." : "Il resto della scheda resta tra te e il Master."}</p>
           </section>
           <BondEditor campaignId={id} characterId={character.id} bonds={character.bonds} />
         </div>
