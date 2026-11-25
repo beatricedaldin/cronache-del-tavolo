@@ -157,7 +157,7 @@ function characterMarkdown(c: Character, withOwner: boolean): string[] {
     lines.push("**Equipaggiamento**", "", ...s.equipment.map((e) => {
       const acquisition = EQUIPMENT_ACQUISITIONS.find((source) => source.key === e.acquisition)?.label;
       const payment = e.paymentSource === "personal" ? " · Zenit personali" : "";
-      return `- ${EQUIPMENT_SLOTS.find((x) => x.key === e.slot)?.label}: **${e.name}**${e.quantity > 1 ? ` ×${e.quantity}` : ""}${acquisition && e.acquisition !== "unknown" ? ` · ${acquisition}` : ""}${e.sessionNumber ? ` · S${e.sessionNumber}` : ""}${e.date ? ` · ${formatDay(e.date)}` : ""}${e.cost > 0 ? ` · ${e.cost} Zenit${payment}` : ""}${e.summary ? ` — ${e.summary}` : ""}`;
+      return `- ${EQUIPMENT_SLOTS.find((x) => x.key === e.slot)?.label}: **${e.name}**${e.quantity > 1 ? ` ×${e.quantity}` : ""}${e.equipped ? "" : " · nello zaino"}${acquisition && e.acquisition !== "unknown" ? ` · ${acquisition}` : ""}${e.sessionNumber ? ` · S${e.sessionNumber}` : ""}${e.date ? ` · ${formatDay(e.date)}` : ""}${e.cost > 0 ? ` · ${e.cost} Zenit${payment}` : ""}${e.summary ? ` — ${e.summary}` : ""}`;
     }), "");
   }
   if (s.advancements.length) {

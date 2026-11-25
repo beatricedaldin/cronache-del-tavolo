@@ -61,6 +61,24 @@ describe("livello e valori derivati", () => {
     const armored = derive(sheetWith({ defenseBase: 10, equipment: [gear] }), 5);
     expect(armored.defense).toBe(12);
   });
+  it("gli oggetti nello zaino non danno bonus", () => {
+    const worn = { name: "Scudo", slot: "scudo", defense: 2, magicDefense: 1, initiative: 0, equipped: true } as unknown as Sheet["equipment"][number];
+    const spare = { ...worn, name: "Scudo di scorta", equipped: false };
+    const d = derive(sheetWith({ equipment: [worn, spare] }), 5);
+    expect(d.defense).toBe(8 + 2);
+    expect(d.magicDefense).toBe(8 + 1);
+  });
+  it("schede vecchie senza flag: indossato l'iniziale, nello zaino quello comprato o trovato", () => {
+    const sheet = normalizeSheet({
+      equipment: [
+        { name: "Spada", acquisition: "starting" },
+        { name: "Pugnale", acquisition: "unknown" },
+        { name: "Scudo trovato", acquisition: "found", defense: 2 },
+        { name: "Elmo comprato", acquisition: "purchase", equipped: true },
+      ],
+    });
+    expect(sheet.equipment.map((e) => e.equipped)).toEqual([true, true, false, true]);
+  });
 });
 
 describe("creazione guidata", () => {

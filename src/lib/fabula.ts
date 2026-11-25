@@ -180,7 +180,16 @@ export type EquipmentEntry = {
   magicDefense: number;
   initiative: number;
   summary: string;
+  /** Indossato o impugnato: solo questi oggetti contano per Difesa, Difesa Magica e Iniziativa. */
+  equipped: boolean;
 };
+
+/**
+ * Le schede salvate prima del flag "equipaggiato" non ce l'hanno: l'equipaggiamento iniziale
+ * e quello scritto a mano si considerano indossati (come prima), quello comprato, trovato o
+ * ricevuto finisce nello zaino finché il giocatore non lo spunta.
+ */
+const equippedByDefault = (acquisition: EquipmentAcquisition) => acquisition === "starting" || acquisition === "unknown";
 
 export type CharacterAdvancement = {
   date: string;
@@ -329,12 +338,15 @@ export function normalizeSheet(input: unknown): Sheet {
     equipment: arr(s.equipment)
       .slice(0, LIST_LIMIT)
       .map(obj)
-      .map((x) => ({
+      .map((x) => {
+        const acquisition = (EQUIPMENT_ACQUISITIONS.some((entry) => entry.key === x.acquisition) ? x.acquisition : "unknown") as EquipmentAcquisition;
+        return {
         name: text(x.name, 80),
         slot: (EQUIPMENT_SLOTS.some((e) => e.key === x.slot) ? x.slot : "altro") as EquipmentSlot,
         quantity: int(x.quantity, 1, 999, 1),
         cost: int(x.cost, 0, 9_999_999, 0),
-        acquisition: (EQUIPMENT_ACQUISITIONS.some((entry) => entry.key === x.acquisition) ? x.acquisition : "unknown") as EquipmentAcquisition,
+        acquisition,
+        equipped: typeof x.equipped === "boolean" ? x.equipped : equippedByDefault(acquisition),
         paymentSource: paymentSource(x.paymentSource),
         sessionNumber: intOrNull(x.sessionNumber, 1, 999),
         date: isoDate(x.date),
@@ -342,7 +354,8 @@ export function normalizeSheet(input: unknown): Sheet {
         magicDefense: int(x.magicDefense, -10, 20, 0),
         initiative: int(x.initiative, -10, 20, 0),
         summary: text(x.summary, 2000),
-      }))
+        };
+      })
       .filter((x) => x.name),
     advancements: arr(s.advancements)
       .slice(-200)
@@ -416,7 +429,9 @@ export type Derived = {
 export function derive(sheet: Sheet, fallbackLevel: number): Derived {
   const level = characterLevel(sheet, fallbackLevel);
   const sum = (pick: (c: ClassEntry) => number) => sheet.classes.reduce((t, c) => t + pick(c), 0);
-  const gear = (pick: (e: EquipmentEntry) => number) => sheet.equipment.reduce((t, e) => t + pick(e), 0);
+  // Solo quello che il PG indossa o impugna: gli oggetti nello zaino non danno bonus.
+  const gear = (pick: (e: EquipmentEntry) => number) =>
+    sheet.equipment.filter((e) => e.equipped !== false).reduce((t, e) => t + pick(e), 0);
   const { dex, ins, mig, wlp } = sheet.attributes;
   const maxHp = mig * 5 + level + sum((c) => c.hp);
 
@@ -466,5 +481,10 @@ export function sheetWarnings(sheet: Sheet, bondCount: number): string[] {
   }
 
   if (bondCount > RULES.maxBonds) w.push(`Hai ${bondCount} Legami: il massimo è ${RULES.maxBonds}.`);
+
+  const worn = (slot: EquipmentSlot) => sheet.equipment.filter((e) => e.equipped && e.slot === slot).length;
+  if (worn("armatura") > 1) w.push("Hai più di un'armatura equipaggiata: se ne indossa una sola.");
+  if (worn("accessorio") > 1) w.push("Hai più di un accessorio equipaggiato: se ne porta uno solo.");
+  if (worn("arma") + worn("scudo") > 2) w.push("Armi e scudi equipaggiati sono più di due: le mani sono due.");
   return w;
 }

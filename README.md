@@ -54,6 +54,8 @@ Nel database chi crea la campagna personale ha il ruolo di Master: le regole di 
 
 Non serve configurare URL di redirect in Supabase: senza link via email non ci sono redirect.
 
+**Supabase non va in pausa.** Il piano gratuito mette in pausa il progetto dopo 7 giorni senza attività. La GitHub Action [keepalive.yml](.github/workflows/keepalive.yml) lo chiama ogni 6 giorni (funzione `keepalive()`, migrazione 0019, che non restituisce dati). Va configurata una volta: in GitHub, **Settings > Secrets and variables > Actions**, aggiungi `SUPABASE_URL` e `SUPABASE_PUBLISHABLE_KEY` (gli stessi valori di `.env.local`), poi provala da **Actions > Supabase sveglio > Run workflow**. GitHub sospende le azioni pianificate dopo 60 giorni senza commit nel repository: se succede, la riattivi dalla stessa pagina.
+
 ## Scheda del personaggio
 
 Principio: **al tavolo si consulta, a casa si compila.** Niente da aggiornare durante il gioco.

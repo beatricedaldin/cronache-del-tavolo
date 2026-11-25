@@ -30,7 +30,7 @@ import { SubmitButton } from "./submit-button";
 type Basics = { name: string; identity: string; theme: string; origin: string; fabulaPoints: number; notes: string };
 
 /** La scheda completa, da compilare con calma dopo la sessione. Tutti i campi sono controllati, così un errore non li svuota. */
-export function SheetEditor({ campaignId, character }: { campaignId: string; character: Character | null }) {
+export function SheetEditor({ campaignId, character }: { campaignId: string; character: Character }) {
   const [state, action] = useActionState<FormState, FormData>(saveCharacterAction.bind(null, campaignId), {});
   const [basics, setBasics] = useState<Basics>({
     name: character?.name ?? "",
@@ -78,6 +78,7 @@ export function SheetEditor({ campaignId, character }: { campaignId: string; cha
   return (
     <form action={action} className="flex flex-col gap-5">
       <input type="hidden" name="sheet" value={JSON.stringify(sheet)} />
+      <input type="hidden" name="version" value={character.updatedAt} />
 
       <Section title={character ? "Il tuo personaggio" : "Crea il tuo personaggio"}>
         <Field label="Nome del PG">
@@ -242,7 +243,7 @@ export function SheetEditor({ campaignId, character }: { campaignId: string; cha
         <ListEditor<EquipmentEntry>
           items={sheet.equipment}
           onChange={(v) => set("equipment", v)}
-          create={() => ({ name: "", slot: "arma", quantity: 1, cost: 0, acquisition: "unknown", paymentSource: null, sessionNumber: null, date: "", defense: 0, magicDefense: 0, initiative: 0, summary: "" })}
+          create={() => ({ name: "", slot: "arma", quantity: 1, cost: 0, acquisition: "unknown", paymentSource: null, sessionNumber: null, date: "", defense: 0, magicDefense: 0, initiative: 0, summary: "", equipped: true })}
           addLabel="Aggiungi oggetto"
           render={(e, update) => (
             <div className="flex flex-col gap-2">
@@ -265,6 +266,10 @@ export function SheetEditor({ campaignId, character }: { campaignId: string; cha
                 <Num label="Iniz." value={e.initiative} min={-10} onChange={(initiative) => update({ initiative })} />
                 <Num label="Costo" value={e.cost} min={0} onChange={(cost) => update({ cost })} />
               </div>
+              <label className="flex items-center gap-2 text-sm font-bold">
+                <input type="checkbox" checked={e.equipped} onChange={(ev) => update({ equipped: ev.target.checked })} className="accent-accent" />
+                Equipaggiato <span className="font-normal text-muted">· i bonus contano solo se lo indossa o lo impugna; altrimenti è nello zaino</span>
+              </label>
               <Summary value={e.summary} onChange={(summary) => update({ summary })} placeholder="Es. Precisione DES + VIG · danno RA + 8 fisico" />
             </div>
           )}

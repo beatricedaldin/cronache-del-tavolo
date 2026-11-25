@@ -28,6 +28,7 @@ declare
   failed   boolean;
   solo      uuid;
   solo_code text;
+  ent_other uuid;
 begin
   -- Utenti finti (il trigger crea i profili) ---------------------------------
   insert into auth.users (id, email, raw_user_meta_data) values
@@ -264,6 +265,24 @@ begin
   select count(*) into n from public.entities where campaign_id = camp and owner_id = p1;
   assert n = 0, '❌ TEST FALLITO: G2 vede ancora i personaggi di una voce tornata privata';
 
+  -- Scritture (0018): file del compendio in uso ----------------------------------
+  perform set_config('request.jwt.claim.sub', p1::text, true);
+  perform set_config('request.jwt.claims', json_build_object('sub', p1, 'role', 'authenticated')::text, true);
+  insert into storage.objects (bucket_id, name, owner_id) values ('compendio', camp || '/place/porto-1.png', p1::text);
+  insert into public.entity_images (campaign_id, kind, slug, name, image_path, uploaded_by)
+  values (camp, 'place', 'portocielo-test', 'Portocielo', camp || '/place/porto-1.png', p1);
+
+  perform set_config('request.jwt.claim.sub', p2::text, true);
+  perform set_config('request.jwt.claims', json_build_object('sub', p2, 'role', 'authenticated')::text, true);
+  begin
+    delete from storage.objects where bucket_id = 'compendio' and name = camp || '/place/porto-1.png';
+  exception when others then null; -- anche un rifiuto va bene: il file deve restare
+  end;
+  perform set_config('role', 'postgres', true);
+  select count(*) into n from storage.objects where bucket_id = 'compendio' and name = camp || '/place/porto-1.png';
+  perform set_config('role', 'authenticated', true);
+  assert n = 1, '❌ TEST FALLITO: un giocatore cancella il file dell''immagine caricata da un altro';
+
   -- Campagna personale: un giocatore da solo, poi il gruppo si unisce ----------
   perform set_config('request.jwt.claim.sub', outsider::text, true);
   perform set_config('request.jwt.claims', json_build_object('sub', outsider, 'role', 'authenticated')::text, true);
@@ -306,6 +325,49 @@ begin
   assert not public.is_gm(solo), '❌ TEST FALLITO: dopo aver passato il ruolo, chi ha creato la campagna è ancora Master';
   select count(*) into n from public.characters where campaign_id = solo and owner_id = outsider;
   assert n = 1, '❌ TEST FALLITO: passando il ruolo di Master si perde il proprio PG';
+  insert into public.entities (campaign_id, owner_id, kind, slug, name)
+  values (solo, outsider, 'npc', 'segreto', 'Segreto') returning id into ent_other;
+
+  -- Scritture (0018): niente si sposta, niente si cita di altri -------------------
+  perform set_config('request.jwt.claim.sub', p1::text, true);
+  perform set_config('request.jwt.claims', json_build_object('sub', p1, 'role', 'authenticated')::text, true);
+  failed := false;
+  begin
+    update public.entries set campaign_id = solo where id = e_priv;
+    get diagnostics n = row_count;
+    failed := n = 0;
+  exception when others then failed := true;
+  end;
+  assert failed, '❌ TEST FALLITO: una voce si sposta in un''altra campagna';
+  insert into public.quotes (campaign_id, author_id, speaker, text)
+  values (camp, p1, 'Kael', 'Non si sposta') returning id into quote1;
+  failed := false;
+  begin
+    update public.quotes set campaign_id = solo where id = quote1;
+    get diagnostics n = row_count;
+    failed := n = 0;
+  exception when others then failed := true;
+  end;
+  assert failed, '❌ TEST FALLITO: una frase si sposta in un''altra campagna';
+  failed := false;
+  begin
+    insert into public.entry_mentions (entry_id, entity_id) values (e_priv, ent_other);
+  exception when others then failed := true;
+  end;
+  assert failed, '❌ TEST FALLITO: si cita l''entità privata di un altro utente';
+
+  -- Scritture (0018): chi viene tolto non modifica più niente ----------------------
+  perform set_config('request.jwt.claim.sub', gm::text, true);
+  perform set_config('request.jwt.claims', json_build_object('sub', gm, 'role', 'authenticated')::text, true);
+  perform public.remove_member(camp, p2);
+  perform set_config('request.jwt.claim.sub', p2::text, true);
+  perform set_config('request.jwt.claims', json_build_object('sub', p2, 'role', 'authenticated')::text, true);
+  update public.entries set body = 'Riscritta da fuori', is_public = true where id = e_p2;
+  get diagnostics n = row_count;
+  assert n = 0, '❌ TEST FALLITO: chi è stato tolto dalla campagna modifica ancora le sue voci';
+  delete from public.entries where id = e_p2;
+  get diagnostics n = row_count;
+  assert n = 0, '❌ TEST FALLITO: chi è stato tolto dalla campagna cancella ancora le sue voci';
 
   -- Chi non ha fatto l'accesso non legge niente -------------------------------
   perform set_config('role', 'anon', true);

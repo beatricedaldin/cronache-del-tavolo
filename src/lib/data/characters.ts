@@ -19,7 +19,7 @@ import {
 import type { Character } from "./types";
 
 const COLUMNS =
-  "id, owner_id, name, classes, level, identity, theme, origin, fabula_points, notes, sheet, portrait_path, owner:profiles!owner_id(display_name), bonds(id, target, emotions, created_at)";
+  "id, owner_id, name, classes, level, identity, theme, origin, fabula_points, notes, sheet, portrait_path, updated_at, owner:profiles!owner_id(display_name), bonds(id, target, emotions, created_at)";
 
 type Row = {
   id: string;
@@ -34,6 +34,7 @@ type Row = {
   notes: string;
   sheet: unknown;
   portrait_path: string | null;
+  updated_at: string;
   owner: { display_name: string } | null;
   bonds: { id: string; target: string; emotions: string[]; created_at: string }[];
 };
@@ -54,6 +55,7 @@ function toCharacter(r: Row): Character {
     sheet: normalizeSheet(r.sheet),
     portraitPath: r.portrait_path,
     portraitUrl: null,
+    updatedAt: r.updated_at,
     bonds: [...r.bonds]
       .sort((a, b) => a.created_at.localeCompare(b.created_at))
       .map(({ id, target, emotions }) => ({ id, target, emotions })),
@@ -115,16 +117,31 @@ export type CharacterEquipmentAcquisitionInput = {
   summary: string;
 };
 
-export async function saveMyCharacter(campaignId: string, input: CharacterInput, advancement?: AdvancementInput) {
+export const STALE_SHEET_MESSAGE =
+  "Nel frattempo la scheda è cambiata (per esempio un acquisto nell'inventario). Ricarica la pagina e rifai le modifiche: così non si perde niente.";
+
+/**
+ * Aggiorna la scheda del proprio PG. Non la crea: per quello c'è createMyCharacter, che controlla le regole.
+ * `version` è l'updatedAt della scheda che l'editor ha caricato: se nel frattempo è cambiata
+ * (un acquisto, un'altra scheda del browser), il salvataggio si ferma invece di sovrascriverla.
+ */
+export async function saveMyCharacter(
+  campaignId: string,
+  input: CharacterInput,
+  version: string,
+  advancement?: AdvancementInput,
+) {
   const user = await getCurrentUser();
   const supabase = await createClient();
   const { data: current, error: currentError } = await supabase
     .from("characters")
-    .select("sheet")
+    .select("id, sheet, updated_at")
     .eq("campaign_id", campaignId)
     .eq("owner_id", user.id)
     .maybeSingle();
   if (currentError) throw dbError(currentError);
+  if (!current) throw new Error("Non hai ancora un personaggio: crealo con la procedura guidata.");
+  if (Date.parse(current.updated_at) !== Date.parse(version)) throw new Error(STALE_SHEET_MESSAGE);
 
   const sheet = normalizeSheet(input.sheet);
   const previous = normalizeSheet(current?.sheet);
@@ -141,10 +158,11 @@ export async function saveMyCharacter(campaignId: string, input: CharacterInput,
       },
     ];
   }
-  const { error } = await supabase.from("characters").upsert(
-    {
-      campaign_id: campaignId,
-      owner_id: user.id,
+  // Il filtro su updated_at rende il controllo atomico: se un acquisto arriva tra la lettura
+  // e la scrittura, non si aggiorna nessuna riga.
+  const { data: saved, error } = await supabase
+    .from("characters")
+    .update({
       name: input.name,
       // Livello e classi sono ricavati dalla scheda, così restano coerenti.
       classes: classesLabel(sheet),
@@ -156,10 +174,12 @@ export async function saveMyCharacter(campaignId: string, input: CharacterInput,
       notes: input.notes,
       sheet,
       updated_at: new Date().toISOString(),
-    },
-    { onConflict: "campaign_id,owner_id" },
-  );
+    })
+    .eq("id", current.id)
+    .eq("updated_at", current.updated_at)
+    .select("id");
   if (error) throw dbError(error);
+  if (!saved?.length) throw new Error(STALE_SHEET_MESSAGE);
 }
 
 export async function acquireCharacterEquipment(characterId: string, input: CharacterEquipmentAcquisitionInput) {

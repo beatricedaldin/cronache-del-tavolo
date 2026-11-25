@@ -142,6 +142,7 @@ export function CharacterCreationWizard({ campaignId }: { campaignId: string }) 
       <input type="hidden" name="identity" value={basics.identity} />
       <input type="hidden" name="theme" value={basics.theme} />
       <input type="hidden" name="origin" value={basics.origin} />
+      <input type="hidden" name="notes" value={basics.notes} />
       <input type="hidden" name="sheet" value={JSON.stringify(sheet)} />
       <input type="hidden" name="savingsRoll" value={savingsRoll} />
       <section className="panel flex flex-col gap-4">
@@ -390,7 +391,7 @@ export function CharacterCreationWizard({ campaignId }: { campaignId: string }) 
                   <RemoveButton onClick={() => set("equipment", sheet.equipment.filter((_, itemIndex) => itemIndex !== index))} />
                 </div>
               ))}
-              <button type="button" className="btn-ghost self-start" onClick={() => set("equipment", [...sheet.equipment, { name: "", slot: "arma", quantity: 1, cost: 0, acquisition: "starting", paymentSource: null, sessionNumber: null, date: "", defense: 0, magicDefense: 0, initiative: 0, summary: "" }])}>
+              <button type="button" className="btn-ghost self-start" onClick={() => set("equipment", [...sheet.equipment, { name: "", slot: "arma", quantity: 1, cost: 0, acquisition: "starting", paymentSource: null, sessionNumber: null, date: "", defense: 0, magicDefense: 0, initiative: 0, summary: "", equipped: true }])}>
                 + Aggiungi oggetto
               </button>
               <p className={`text-sm font-bold ${spent > RULES.equipmentBudget ? "text-danger" : ""}`}>

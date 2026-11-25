@@ -31,16 +31,18 @@ export async function saveCharacterAction(campaignId: string, _: FormState, fd: 
   } catch {
     return { error: "La scheda non è leggibile. Ricarica la pagina e riprova." };
   }
+  const version = str(fd, "version");
+  if (!version) return { error: "La scheda non è leggibile. Ricarica la pagina e riprova." };
   try {
     await saveMyCharacter(campaignId, {
       name,
       identity: str(fd, "identity"),
       theme: str(fd, "theme"),
       origin: str(fd, "origin"),
-      fabulaPoints: Math.max(0, int(fd, "fabulaPoints", 3)),
+      fabulaPoints: Math.min(99, Math.max(0, int(fd, "fabulaPoints", 3))),
       notes: str(fd, "notes"),
       sheet: normalizeSheet(sheet),
-    }, advancementSummary ? { sessionNumber, summary: advancementSummary } : undefined);
+    }, version, advancementSummary ? { sessionNumber, summary: advancementSummary } : undefined);
   } catch (e) {
     return { error: errorMessage(e) };
   }

@@ -32,6 +32,7 @@ export function CharacterEquipmentForm({
       <h2 className="font-display text-xl font-bold">Nuovo oggetto</h2>
       <p className="text-sm text-muted">
         Registra a casa ciò che hai comprato, trovato o ricevuto. Gli acquisti vengono addebitati ai tuoi Zenit personali.
+        L&apos;oggetto finisce nello zaino: se il PG lo indossa o lo impugna, spunta «Equipaggiato» in Modifica scheda.
       </p>
       <p className="text-sm">
         Zenit personali: <b>{personalZenit.toLocaleString("it-IT")}</b>

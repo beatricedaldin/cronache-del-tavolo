@@ -113,6 +113,8 @@ export type Character = {
   portraitPath: string | null;
   portraitUrl: string | null;
   bonds: Bond[];
+  /** Ultima modifica della scheda: serve a non sovrascrivere un acquisto fatto nel frattempo. */
+  updatedAt: string;
 };
 
 export type Member = { userId: string; displayName: string; role: Role; characterName: string | null };

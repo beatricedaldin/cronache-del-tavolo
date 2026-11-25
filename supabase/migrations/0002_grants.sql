@@ -10,7 +10,6 @@ grant usage on schema public to authenticated;
 
 grant select, insert, update, delete on
   public.profiles,
-  public.campaigns,
   public.campaign_members,
   public.characters,
   public.bonds,
@@ -19,6 +18,12 @@ grant select, insert, update, delete on
   public.entry_mentions,
   public.threads
 to authenticated;
+
+-- Campagne: si cambia solo il nome. Codice invito e Master si cambiano con le funzioni
+-- di 0011, che controllano le regole (rieseguire questo file non deve riaprire il resto).
+grant select, insert, delete on public.campaigns to authenticated;
+revoke update on public.campaigns from authenticated;
+grant update (name) on public.campaigns to authenticated;
 
 -- Funzioni usate dentro le policy RLS.
 grant execute on function public.is_member(uuid) to authenticated;

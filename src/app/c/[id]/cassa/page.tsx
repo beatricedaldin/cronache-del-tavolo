@@ -51,7 +51,10 @@ async function PersonalResources({ params }: { params: Promise<{ id: string }> }
               <ul className="divide-y divide-line">
                 {character.sheet.equipment.map((item, index) => (
                   <li key={`${item.name}-${index}`} className="py-3 first:pt-0 last:pb-0">
-                    <p className="font-bold">{item.name}{item.quantity > 1 ? ` × ${item.quantity}` : ""}</p>
+                    <p className="font-bold">
+                      {item.name}{item.quantity > 1 ? ` × ${item.quantity}` : ""}
+                      {!item.equipped && <span className="ml-2 text-xs font-normal italic text-muted">nello zaino</span>}
+                    </p>
                     <p className="text-sm text-muted">
                       {EQUIPMENT_SLOTS.find((slot) => slot.key === item.slot)?.label ?? item.slot}
                       {" · "}

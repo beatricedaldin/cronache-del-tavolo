@@ -172,6 +172,7 @@ export function SheetView({ character: c, openThreads = [] }: { character: Chara
                   <span className="label">{EQUIPMENT_SLOTS.find((x) => x.key === e.slot)?.label}</span>
                   <b>{e.name}</b>
                   {e.quantity > 1 && <span className="session">×{e.quantity}</span>}
+                  {!e.equipped && <span className="text-xs italic text-muted">nello zaino</span>}
                   {e.acquisition !== "unknown" && (
                     <span className="text-xs text-muted">
                       {EQUIPMENT_ACQUISITIONS.find((source) => source.key === e.acquisition)?.label}
